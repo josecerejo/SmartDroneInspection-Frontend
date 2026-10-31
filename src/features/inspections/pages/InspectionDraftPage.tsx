@@ -131,6 +131,7 @@ export default function InspectionDraftPage() {
       findingsConfirmed &&
       !isPublished &&
       !isLockedInReview &&
+      !versions.isLoading &&
       (versionList.length === 0 || sourcesChangedAfterVersion) &&
       !createDraft.isPending &&
       !createDraft.isError &&
@@ -143,6 +144,7 @@ export default function InspectionDraftPage() {
     findingsConfirmed,
     isPublished,
     isLockedInReview,
+    versions.isLoading,
     versionList.length,
     sourcesChangedAfterVersion,
     createDraft,
@@ -385,11 +387,18 @@ export default function InspectionDraftPage() {
         loading={submit.isPending}
         maxWidth="sm"
         onCancel={() => setConfirmSubmitOpen(false)}
-        onConfirm={() => {
+        onConfirm={async () => {
           if (openVersion) {
-            submit.mutate(openVersion.id, {
-              onSuccess: () => setConfirmSubmitOpen(false),
-            });
+            try {
+              if (openVersion.status === 'DRAFT' || openVersion.status === 'RETURNED') {
+                await verify.mutateAsync(openVersion.id);
+              }
+              submit.mutate(openVersion.id, {
+                onSuccess: () => setConfirmSubmitOpen(false),
+              });
+            } catch {
+              // MutationProblemAlert displays the error
+            }
           }
         }}
       >

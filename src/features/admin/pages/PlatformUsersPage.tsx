@@ -118,7 +118,15 @@ export default function PlatformUsersPage() {
           <Button
             size="small"
             variant="outlined"
-            onClick={() => resetPassword.mutate(user.id)}
+            onClick={() =>
+              resetPassword.mutate(user.id, {
+                onSuccess: (data) =>
+                  setIssuedPassword({
+                    email: user.email,
+                    temporaryPassword: data.temporaryPassword,
+                  }),
+              })
+            }
           >
             {t('Reset password')}
           </Button>
