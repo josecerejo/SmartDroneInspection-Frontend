@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useOutletContext } from 'react-router-dom';
 import { Link as RouterLink, useParams } from 'react-router-dom';
 import {
   Alert,
@@ -9,8 +10,6 @@ import {
   Stack,
   Typography,
 } from '@mui/material';
-import AutoAwesomeOutlined from '@mui/icons-material/AutoAwesomeOutlined';
-import EditNoteRounded from '@mui/icons-material/EditNoteRounded';
 import { useAuthStore } from '@/features/auth/store/authStore';
 import { getErrorMessage } from '@/shared/api/errorMessage';
 import { isConflict } from '@/shared/api/problem';
@@ -22,7 +21,6 @@ import {
   useInspectionFindings,
   useInspectionWorkflowState,
   useReportVersions,
-  useSaveReportSections,
   useSubmitReportVersion,
   useVerifyReportVersion,
   useWithdrawReportVersion,
@@ -30,7 +28,6 @@ import {
 } from '../hooks/useInspections';
 import { ConfirmDialog } from '@/shared/ui/ConfirmDialog';
 import { DraftProgressTracker } from '../components/DraftProgressTracker';
-import { AiMotionFigure } from '../components/AiMotionFigure';
 import { ReportAuthoringPanel } from '@/features/reports/components/ReportAuthoringPanel';
 import type { ReportSectionValues } from '@/features/reports/components/ReportSectionForm';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
@@ -51,6 +48,10 @@ const NEXT_STEP: Record<string, string> = {
  */
 export default function InspectionDraftPage() {
   const { t } = useLocale();
+  const outletContext = useOutletContext<{ onReportDirtyChange?: (dirty: boolean) => void }>() as
+    | { onReportDirtyChange?: (dirty: boolean) => void }
+    | null;
+  const onReportDirtyChange = outletContext?.onReportDirtyChange;
   const { inspectionId = '' } = useParams();
   const isInspector = useAuthStore((state) => state.roles.includes('INSPECTOR'));
   const userId = useAuthStore((state) => state.user?.id ?? state.userId);
@@ -63,7 +64,6 @@ export default function InspectionDraftPage() {
 
   const createDraft = useGenerateReportDraft(inspectionId);
   const authorManualDraft = useAuthorManualDraft(inspectionId);
-  const saveSections = useSaveReportSections(inspectionId);
   const verify = useVerifyReportVersion(inspectionId);
   const submit = useSubmitReportVersion(inspectionId);
   const withdraw = useWithdrawReportVersion(inspectionId);
@@ -80,12 +80,10 @@ export default function InspectionDraftPage() {
   const inspectionStatus = workflow.data?.status ?? '';
   const findingsConfirmed =
     Boolean(workflow.data?.findingsSnapshotHash) &&
-    ['REPORT_DRAFT', 'REPORT_PUBLISHED', 'REPAIR_PENDING', 'COMPLETED'].includes(
+    ['FIELD_COMPLETED', 'UNDER_REVIEW', 'COMPLETED'].includes(
       inspectionStatus,
     );
-  const isPublished = ['REPORT_PUBLISHED', 'REPAIR_PENDING', 'COMPLETED'].includes(
-    inspectionStatus,
-  );
+  const isPublished = inspectionStatus === 'COMPLETED';
   const latestStatus = versionList[0]?.status;
   const isLockedInReview =
     latestStatus === 'SUBMITTED' ||
@@ -123,20 +121,35 @@ export default function InspectionDraftPage() {
       (openVersion?.status === 'DRAFT' || openVersion?.status === 'RETURNED'),
   );
 
-  const handleSaveSections = async (sections: ReportSectionValues) => {
-    if (!openVersion) return;
-    await saveSections.mutateAsync({
-      versionId: openVersion.id,
-      sections: {
-        ...sections,
-        overallCondition: sections.overallCondition || null,
-      },
-    });
-    await versions.refetch();
+  const handleSaveSections = async (_sections: ReportSectionValues) => {
+    // Report sections are derived automatically from confirmed records.
   };
 
+  useEffect(() => {
+    if (
+      isInspector &&
+      findingsConfirmed &&
+      !isPublished &&
+      !isLockedInReview &&
+      (versionList.length === 0 || sourcesChangedAfterVersion) &&
+      !createDraft.isPending &&
+      !createDraft.isError &&
+      !createDraft.isSuccess
+    ) {
+      createDraft.mutate();
+    }
+  }, [
+    isInspector,
+    findingsConfirmed,
+    isPublished,
+    isLockedInReview,
+    versionList.length,
+    sourcesChangedAfterVersion,
+    createDraft,
+  ]);
+
   return (
-    <Stack spacing={2}>
+    <Stack className="trace-ledger-workspace" spacing={2}>
       {!isInspector && (
         <Alert severity="info" sx={{ borderRadius: '12px' }}>
           {t('Organization Manager review actions are available on the Review report tab. This stage is retained for read-only status and version history.')}
@@ -146,9 +159,10 @@ export default function InspectionDraftPage() {
       {(isInspector || openVersion) && (
         <Paper
           variant="outlined"
+          className="trace-stage-panel"
           sx={{
             p: { xs: 2, sm: 2.5 },
-            borderRadius: '16px',
+            borderRadius: '8px',
             borderColor: 'divider',
             bgcolor: 'background.paper',
           }}
@@ -162,7 +176,7 @@ export default function InspectionDraftPage() {
               <Box>
                 <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap', gap: 0.75 }}>
                   <Typography variant="h6" sx={{ fontWeight: 800, color: 'text.primary' }}>
-                    {openVersion ? `${t('Version')} ${openVersion.versionNo}` : t('Create report draft')}
+                    {openVersion ? `${t('Version')} ${openVersion.versionNo}` : t('Inspection report')}
                   </Typography>
                   {openVersion && (
                     <Chip
@@ -196,9 +210,9 @@ export default function InspectionDraftPage() {
                 </Stack>
                 {!openVersion && (
                   <Typography variant="body2" color="text.secondary" sx={{ mt: 0.25 }}>
-                    {t(
-                      'Generate an AI-assisted draft from your confirmed findings and field records, or start a blank structured draft.',
-                    )}
+                    {createDraft.isPending
+                      ? t('Compiling report automatically from confirmed findings and evidence…')
+                      : t('Report is generated automatically from confirmed findings and evidence.')}
                   </Typography>
                 )}
               </Box>
@@ -228,52 +242,6 @@ export default function InspectionDraftPage() {
                       {withdraw.isPending ? t('Withdrawing…') : t('Withdraw submission and revise')}
                     </Button>
                   )}
-
-                  <Button
-                    variant={openVersion && !sourcesChangedAfterVersion ? 'outlined' : 'contained'}
-                    size={openVersion ? 'small' : 'medium'}
-                    disabled={
-                      !isInspector ||
-                      isPublished ||
-                      isLockedInReview ||
-                      createDraft.isPending ||
-                      !findingsConfirmed
-                    }
-                    startIcon={
-                      createDraft.isPending ? (
-                        <AiMotionFigure name="draftBurst" size={20} />
-                      ) : (
-                        <AutoAwesomeOutlined fontSize="small" />
-                      )
-                    }
-                    onClick={() => createDraft.mutate()}
-                    sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600 }}
-                  >
-                    {createDraft.isPending ? t('Compiling report…') : t('Generate report draft')}
-                  </Button>
-
-                  <Button
-                    variant="outlined"
-                    size={openVersion ? 'small' : 'medium'}
-                    disabled={
-                      !isInspector ||
-                      isPublished ||
-                      isLockedInReview ||
-                      !findingsConfirmed ||
-                      authorManualDraft.isPending
-                    }
-                    startIcon={
-                      authorManualDraft.isPending ? (
-                        <AiMotionFigure name="draftRibbon" size={18} />
-                      ) : (
-                        <EditNoteRounded fontSize="small" />
-                      )
-                    }
-                    onClick={() => authorManualDraft.mutate({})}
-                    sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600 }}
-                  >
-                    {authorManualDraft.isPending ? t('Creating draft…') : t('Create manual draft')}
-                  </Button>
                 </Stack>
               )}
             </Stack>
@@ -403,6 +371,7 @@ export default function InspectionDraftPage() {
             inspectionId={inspectionId}
             canEdit={canEditOpenVersion}
             onSaveSections={handleSaveSections}
+            onDirtyChange={onReportDirtyChange}
             reinspectionVerifications={reinspectionVerifications.data}
           />
         )

@@ -136,24 +136,21 @@ describe('InspectionDraftPage', () => {
   it('keeps draft generation blocked until findings have been confirmed, without an evidence decision', () => {
     renderWithRouter(<InspectionDraftPage />);
 
-    expect(
-      (screen.getByRole('button', { name: 'Generate report draft' }) as HTMLButtonElement).disabled,
-    ).toBe(true);
+    expect(mocks.createDraft.mutate).not.toHaveBeenCalled();
     expect(screen.queryByText(/Accept the evidence set/)).toBeNull();
   });
 
-  it('keeps manual draft creation disabled until findings have been confirmed', () => {
+  it('keeps report draft generation disabled until findings have been confirmed', () => {
     renderWithRouter(<InspectionDraftPage />);
 
-    expect((screen.getByRole('button', { name: 'Generate report draft' }) as HTMLButtonElement).disabled).toBe(true);
-    expect((screen.getByRole('button', { name: 'Create manual draft' }) as HTMLButtonElement).disabled).toBe(true);
+    expect(mocks.createDraft.mutate).not.toHaveBeenCalled();
     expect(screen.getByRole('link', { name: 'Go to Findings' })).toBeTruthy();
   });
 
-  it('generates a draft once findings are confirmed, without an evidence decision', () => {
+  it('generates a draft automatically once findings are confirmed, without an evidence decision', () => {
     mocks.workflowQuery = {
       data: {
-        status: 'REPORT_DRAFT',
+        status: 'FIELD_COMPLETED',
         findingsConfirmedAt: '2026-10-14T12:00:00Z',
         findingsSnapshotHash: 'abc123',
       },
@@ -162,7 +159,6 @@ describe('InspectionDraftPage', () => {
     };
     renderWithRouter(<InspectionDraftPage />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Generate report draft' }));
     expect(mocks.createDraft.mutate).toHaveBeenCalledOnce();
   });
 
@@ -205,7 +201,7 @@ describe('InspectionDraftPage', () => {
   it('renders the 4 simplified report sections and author verification actions in-place once a version exists', () => {
     mocks.workflowQuery = {
       data: {
-        status: 'REPORT_DRAFT',
+        status: 'FIELD_COMPLETED',
         findingsConfirmedAt: '2026-10-14T11:00:00Z',
         findingsSnapshotHash: 'abc123',
       },
@@ -236,14 +232,10 @@ describe('InspectionDraftPage', () => {
     };
     renderWithRouter(<InspectionDraftPage />);
 
-    expect(screen.getByLabelText('Executive summary text')).toBeTruthy();
-    expect(screen.getByLabelText('Limitations and omissions text')).toBeTruthy();
-    expect(screen.getByLabelText('Conclusions and recommendations text')).toBeTruthy();
-
-    // Legacy fields must be completely removed
-    expect(screen.queryByText('Purpose, scope and criteria')).toBeNull();
-    expect(screen.queryByText('Method, equipment and conditions')).toBeNull();
-    expect(screen.queryByLabelText('Inspector coverage assessment (optional)')).toBeNull();
+    expect(screen.getByText('Report details')).toBeTruthy();
+    expect(screen.queryByLabelText('Executive summary text')).toBeNull();
+    expect(screen.queryByLabelText('Limitations and omissions text')).toBeNull();
+    expect(screen.queryByLabelText('Conclusions and recommendations text')).toBeNull();
 
     // In-place submit action opens ConfirmDialog
     fireEvent.click(screen.getByRole('button', { name: 'Submit for review' }));
@@ -254,7 +246,7 @@ describe('InspectionDraftPage', () => {
   it('allows the Inspector to withdraw a submitted version in-place before reviewer action', () => {
     mocks.workflowQuery = {
       data: {
-        status: 'REPORT_DRAFT',
+        status: 'FIELD_COMPLETED',
         findingsConfirmedAt: '2026-10-14T11:00:00Z',
         findingsSnapshotHash: 'abc123',
       },
@@ -290,7 +282,7 @@ describe('InspectionDraftPage', () => {
   it('does not ask an already published inspection to confirm findings again', () => {
     mocks.workflowQuery = {
       data: {
-        status: 'REPORT_PUBLISHED',
+        status: 'COMPLETED',
         findingsConfirmedAt: '2026-10-15T09:00:00Z',
         findingsSnapshotHash: 'abc123',
       },
@@ -318,8 +310,7 @@ describe('InspectionDraftPage', () => {
 
     expect(screen.queryByRole('link', { name: 'Go to Findings' })).toBeNull();
     expect(screen.getByText(/report has been published/i)).toBeTruthy();
-    expect((screen.getByRole('button', { name: 'Generate report draft' }) as HTMLButtonElement).disabled).toBe(true);
-    expect((screen.getByRole('button', { name: 'Create manual draft' }) as HTMLButtonElement).disabled).toBe(true);
+    expect(mocks.createDraft.mutate).not.toHaveBeenCalled();
   });
 
   it('shows the reviewer read-only report view without Inspector draft controls', () => {
@@ -348,14 +339,13 @@ describe('InspectionDraftPage', () => {
       ),
     ).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Generate report draft' })).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Create manual draft' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Save sections' })).toBeNull();
   });
 
-  it('creates an empty manual structured draft after findings confirmation', () => {
+  it('creates an auto-generated structured draft after findings confirmation', () => {
     mocks.workflowQuery = {
       data: {
-        status: 'REPORT_DRAFT',
+        status: 'FIELD_COMPLETED',
         findingsConfirmedAt: '2026-10-14T12:00:00Z',
         findingsSnapshotHash: 'abc123',
       },
@@ -364,9 +354,6 @@ describe('InspectionDraftPage', () => {
     };
     renderWithRouter(<InspectionDraftPage />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Create manual draft' }));
-    expect(mocks.authorManualDraft.mutate).toHaveBeenCalledWith({});
-    expect(screen.queryByLabelText('Narrative')).toBeNull();
-    expect(screen.queryByLabelText('Omitted analysis disclosure')).toBeNull();
+    expect(mocks.createDraft.mutate).toHaveBeenCalled();
   });
 });
