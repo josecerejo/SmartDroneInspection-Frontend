@@ -263,6 +263,44 @@ export default function AccountSecurityPage() {
               bgcolor: 'background.paper',
             }}
           >
+            <Stack spacing={2}>
+              <Box>
+                <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                  {t('Quản lý Drone & Hồ sơ kiểm định')}
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                  {t(
+                    'Bổ sung drone, khai báo thông số kỹ thuật và tải lên hình ảnh giấy đăng ký, giấy tờ sở hữu và giấy kiểm định để Manager thẩm định.',
+                  )}
+                </Typography>
+              </Box>
+              <Button
+                variant="contained"
+                onClick={() => navigate('/operations/inspector-drones')}
+                sx={{
+                  alignSelf: 'flex-start',
+                  bgcolor: '#3758F9',
+                  textTransform: 'none',
+                  fontWeight: 600,
+                  '&:hover': { bgcolor: '#2b45cb' },
+                }}
+              >
+                {t('Khai báo & Tải giấy tờ Drone')}
+              </Button>
+            </Stack>
+          </Box>
+        )}
+
+        {user?.roles.includes('INSPECTOR') && (
+          <Box
+            sx={{
+              p: { xs: 2, sm: 3 },
+              border: 1,
+              borderColor: 'divider',
+              borderRadius: 3,
+              bgcolor: 'background.paper',
+            }}
+          >
             <Stack spacing={1.5}>
               <Box>
                 <Typography variant="h6" sx={{ fontWeight: 700 }}>{t('AI analysis fallback')}</Typography>

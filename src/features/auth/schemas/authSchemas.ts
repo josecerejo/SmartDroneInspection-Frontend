@@ -52,6 +52,7 @@ export const organizationRegistrationSchema = z
         'Use 3–64 letters, numbers, hyphens, or underscores; start with a letter or number.',
       ),
     email: emailField,
+    phoneNumber: z.string().trim().max(32).optional(),
     password: z
       .string()
       .min(15, 'Use at least 15 characters.')

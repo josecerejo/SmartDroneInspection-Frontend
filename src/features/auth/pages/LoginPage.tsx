@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
   Alert,
   Button,
   IconButton,
   InputAdornment,
+  MenuItem,
   Stack,
   TextField,
 } from '@mui/material';
@@ -17,6 +18,9 @@ import {
   completeInitialPasswordSetup,
   getAuthErrorMessage,
   login,
+  loginWithGoogle,
+  sendLoginOtp,
+  verifyLoginOtp,
 } from '../api/authApi';
 import {
   PORTAL_ROLE_ACCESS,
@@ -44,6 +48,11 @@ export default function LoginPage() {
   const [searchParams] = useSearchParams();
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [pendingSetupEmail, setPendingSetupEmail] = useState<string | null>(null);
+  const [otpChallenge, setOtpChallenge] = useState<string | null>(null);
+  const [otpChannels, setOtpChannels] = useState<Array<'EMAIL' | 'SMS'>>([]);
+  const [otpChannel, setOtpChannel] = useState<'EMAIL' | 'SMS' | null>(null);
+  const [otpCode, setOtpCode] = useState('');
+  const [otpSent, setOtpSent] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
 
@@ -85,7 +94,18 @@ export default function LoginPage() {
         return;
       }
 
-      if (!result.accessToken) {
+      if (result.step === 'OTP_REQUIRED') {
+        if (!result.challengeToken || !result.availableOtpChannels?.length) {
+          throw new Error('The verification options are unavailable. Contact your administrator.');
+        }
+        setOtpChallenge(result.challengeToken);
+        setOtpChannels(result.availableOtpChannels);
+        setOtpChannel(result.availableOtpChannels[0] ?? null);
+        setOtpCode('');
+        setOtpSent(false);
+        return;
+      }
+      if (!result.accessToken || !result.user) {
         throw new Error('The sign-in response did not include an access token.');
       }
       const portal: PortalId | null = getPortalForHost(
@@ -104,6 +124,119 @@ export default function LoginPage() {
     }
   };
 
+  const GOOGLE_CLIENT_ID =
+    (import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined) ??
+    '690876253853-mqm43muduqudn1jbsu292sprrcec100a.apps.googleusercontent.com';
+
+  const handleGoogleCredential = async (credential: string) => {
+    setErrorMessage(null);
+    try {
+      const result = await loginWithGoogle(credential);
+      if (result.step === 'OTP_REQUIRED') {
+        if (!result.challengeToken || !result.availableOtpChannels?.length) {
+          throw new Error('The verification options are unavailable. Contact your administrator.');
+        }
+        setOtpChallenge(result.challengeToken);
+        setOtpChannels(result.availableOtpChannels);
+        setOtpChannel(result.availableOtpChannels[0] ?? null);
+        setOtpCode('');
+        setOtpSent(false);
+        return;
+      }
+      if (!result.accessToken || !result.user) {
+        throw new Error('The sign-in response did not include an access token.');
+      }
+      const portal: PortalId | null = getPortalForHost(window.location.hostname);
+      if (portal && !hasAnyRole(result.user.roles, PORTAL_ROLE_ACCESS[portal])) {
+        setErrorMessage('This account does not belong to this workspace.');
+        return;
+      }
+      setSession({ accessToken: result.accessToken, user: result.user });
+      navigate(getAuthRedirectTarget(returnTo, result.user.roles), {
+        replace: true,
+      });
+    } catch (error) {
+      setErrorMessage(getAuthErrorMessage(error));
+    }
+  };
+
+  useEffect(() => {
+    const google = (window as unknown as { google?: { accounts?: { id?: any } } })?.google;
+    if (google?.accounts?.id) {
+      google.accounts.id.initialize({
+        client_id: GOOGLE_CLIENT_ID,
+        callback: (response: { credential?: string }) => {
+          if (response.credential) {
+            void handleGoogleCredential(response.credential);
+          }
+        },
+      });
+      const container = document.getElementById('gsi-hidden-btn');
+      if (container) {
+        google.accounts.id.renderButton(container, {
+          type: 'standard',
+          size: 'large',
+        });
+      }
+    }
+  }, []);
+
+  const onGoogleClick = () => {
+    setErrorMessage(null);
+    const google = (window as unknown as { google?: { accounts?: { id?: any } } })?.google;
+    if (google?.accounts?.id) {
+      google.accounts.id.initialize({
+        client_id: GOOGLE_CLIENT_ID,
+        callback: (response: { credential?: string }) => {
+          if (response.credential) {
+            void handleGoogleCredential(response.credential);
+          }
+        },
+      });
+      google.accounts.id.prompt((notification: { isNotDisplayed?: () => boolean; isSkippedMoment?: () => boolean }) => {
+        if (notification.isNotDisplayed?.() || notification.isSkippedMoment?.()) {
+          const hiddenBtn = document.getElementById('gsi-hidden-btn')?.querySelector('div[role="button"]') as HTMLElement | null;
+          if (hiddenBtn) {
+            hiddenBtn.click();
+          }
+        }
+      });
+    } else {
+      setErrorMessage('Google Sign-In is initializing. Please try again.');
+    }
+  };
+
+  const onSendOtp = async () => {
+    if (!otpChallenge || !otpChannel) return;
+    setErrorMessage(null);
+    try {
+      await sendLoginOtp(otpChallenge, otpChannel);
+      setOtpSent(true);
+    } catch (error) {
+      setErrorMessage(getAuthErrorMessage(error));
+    }
+  };
+
+  const onVerifyOtp = async () => {
+    if (!otpChallenge || !otpCode) return;
+    setErrorMessage(null);
+    try {
+      const result = await verifyLoginOtp(otpChallenge, otpCode);
+      if (result.step !== 'AUTHENTICATED' || !result.accessToken || !result.user) {
+        throw new Error('The verification response did not complete sign-in.');
+      }
+      const portal: PortalId | null = getPortalForHost(window.location.hostname);
+      if (portal && !hasAnyRole(result.user.roles, PORTAL_ROLE_ACCESS[portal])) {
+        setErrorMessage('This account does not belong to this workspace.');
+        return;
+      }
+      setSession({ accessToken: result.accessToken, user: result.user });
+      navigate(getAuthRedirectTarget(returnTo, result.user.roles), { replace: true });
+    } catch (error) {
+      setErrorMessage(getAuthErrorMessage(error));
+    }
+  };
+
   const onPasswordSetup = async (values: PasswordSetupFormValues) => {
     if (!pendingSetupEmail) {
       return;
@@ -116,7 +249,19 @@ export default function LoginPage() {
         values.currentPassword,
         values.password,
       );
-      if (result.step !== 'AUTHENTICATED' || !result.accessToken) {
+      if (result.step === 'OTP_REQUIRED') {
+        if (!result.challengeToken || !result.availableOtpChannels?.length) {
+          throw new Error('The verification options are unavailable. Contact your administrator.');
+        }
+        setPendingSetupEmail(null);
+        setOtpChallenge(result.challengeToken);
+        setOtpChannels(result.availableOtpChannels);
+        setOtpChannel(result.availableOtpChannels[0] ?? null);
+        setOtpCode('');
+        setOtpSent(false);
+        return;
+      }
+      if (result.step !== 'AUTHENTICATED' || !result.accessToken || !result.user) {
         throw new Error('Password setup did not complete sign-in.');
       }
 
@@ -144,6 +289,66 @@ export default function LoginPage() {
         ?.registrationComplete,
     );
   const passwordChanged = searchParams.get('passwordChanged') === '1';
+
+  if (otpChallenge) {
+    return (
+      <AuthPageLayout
+        eyebrow={t('One-time security step')}
+        title={t('Verify it’s you')}
+        description={t('Choose where to receive your sign-in code. Your account contact information is used for delivery.')}
+      >
+        <Stack spacing={2.2}>
+          <TextField
+            select
+            label={t('Delivery method')}
+            value={otpChannel ?? ''}
+            onChange={(event) => {
+              setOtpChannel(event.target.value as 'EMAIL' | 'SMS');
+              setOtpSent(false);
+            }}
+            fullWidth
+          >
+            {otpChannels.map((channel) => (
+              <MenuItem key={channel} value={channel}>
+                {channel === 'EMAIL' ? t('Email') : t('SMS')}
+              </MenuItem>
+            ))}
+          </TextField>
+          {!otpSent ? (
+            <Button type="button" variant="contained" onClick={onSendOtp} disabled={!otpChannel}>
+              {t('Send verification code')}
+            </Button>
+          ) : (
+            <>
+              <Alert severity="info">{t('A six-digit code was sent to your registered contact.')}</Alert>
+              <TextField
+                label={t('Verification code')}
+                value={otpCode}
+                onChange={(event) => setOtpCode(event.target.value.replace(/\D/g, '').slice(0, 6))}
+                slotProps={{ htmlInput: { inputMode: 'numeric', autoComplete: 'one-time-code', maxLength: 6 } }}
+                fullWidth
+              />
+              <Button type="button" variant="contained" onClick={onVerifyOtp} disabled={otpCode.length !== 6}>
+                {t('Verify and sign in')}
+              </Button>
+            </>
+          )}
+          {errorMessage && <Alert severity="error" role="alert">{errorMessage}</Alert>}
+          <Button
+            color="inherit"
+            onClick={() => {
+              setOtpChallenge(null);
+              setOtpCode('');
+              setOtpSent(false);
+              setErrorMessage(null);
+            }}
+          >
+            {t('Back to sign in')}
+          </Button>
+        </Stack>
+      </AuthPageLayout>
+    );
+  }
 
   if (pendingSetupEmail) {
     return (
@@ -317,11 +522,13 @@ export default function LoginPage() {
       backLabel={t('Back to website')}
       backTo="/"
       socialPrompt={t('Or sign in with')}
+      onGoogleClick={onGoogleClick}
       heroTagline={{
         line1: 'Precision View,',
         line2: 'Intelligent Insights',
       }}
     >
+      <div id="gsi-hidden-btn" style={{ position: 'absolute', opacity: 0.01, pointerEvents: 'none', zIndex: -1 }} />
       <Stack
         component="form"
         spacing={2.2}

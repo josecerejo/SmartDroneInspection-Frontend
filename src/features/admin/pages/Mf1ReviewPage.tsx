@@ -3,6 +3,7 @@ import {
   Alert,
   Box,
   Button,
+  Chip,
   Dialog,
   DialogActions,
   DialogContent,
@@ -154,21 +155,81 @@ export default function Mf1ReviewPage() {
         )}
       </Paper>
 
-      <Dialog open={selected !== null} onClose={closeDialog} fullWidth maxWidth="sm">
-        <DialogTitle>Review {panel === 'Customer airspace' ? 'customer registration' : panel === 'Inspector partners' ? 'inspector partner application' : 'drone registration'}</DialogTitle>
+      <Dialog open={selected !== null} onClose={closeDialog} fullWidth maxWidth="md">
+        <DialogTitle sx={{ fontWeight: 700 }}>
+          Review {panel === 'Customer airspace' ? 'Customer registration' : panel === 'Inspector partners' ? 'Inspector partner application' : 'Drone registration & inspection documents'}
+        </DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ mt: 1 }}>
-            {selected && <Alert severity="info">{panel === 'Customer airspace' ? `${(selected as ProspectiveCustomerReview).organizationName} · ${(selected as ProspectiveCustomerReview).assetName} · ${(selected as ProspectiveCustomerReview).airspaceClassification}` : panel === 'Inspector partners' ? `${(selected as InspectorPartnerApplication).fullName} · ${(selected as InspectorPartnerApplication).pilotLicenseNumber} · expires ${(selected as InspectorPartnerApplication).pilotLicenseExpiresAt}` : `${(selected as DroneRegistrationApplication).serialNumber} · ${(selected as DroneRegistrationApplication).registrationNumber}`}</Alert>}
-            {evidenceLoading && <Typography>Loading evidence documents…</Typography>}
+            {selected && (
+              <Paper variant="outlined" sx={{ p: 2, bgcolor: '#f8fafc', borderRadius: 2 }}>
+                {panel === 'Customer airspace' ? (
+                  <Stack spacing={0.5}>
+                    <Typography sx={{ fontWeight: 700 }}>{(selected as ProspectiveCustomerReview).organizationName}</Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      Tài sản: {(selected as ProspectiveCustomerReview).assetName} ({ (selected as ProspectiveCustomerReview).assetCode }) · Phân loại không phận: {(selected as ProspectiveCustomerReview).airspaceClassification}
+                    </Typography>
+                  </Stack>
+                ) : panel === 'Inspector partners' ? (
+                  <Stack spacing={0.5}>
+                    <Typography sx={{ fontWeight: 700 }}>{(selected as InspectorPartnerApplication).fullName}</Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      Email: {(selected as InspectorPartnerApplication).email} · Bằng lái số: {(selected as InspectorPartnerApplication).pilotLicenseNumber} (Hạng {(selected as InspectorPartnerApplication).pilotLicenseClass}) · Hạn bằng: {(selected as InspectorPartnerApplication).pilotLicenseExpiresAt}
+                    </Typography>
+                  </Stack>
+                ) : (
+                  <Stack spacing={1}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Typography sx={{ fontWeight: 700, fontSize: '1.05rem', color: '#1e293b' }}>
+                        {(selected as DroneRegistrationApplication).model ?? 'Drone'}
+                      </Typography>
+                      <Chip label={`Hãng: ${(selected as DroneRegistrationApplication).manufacturer ?? '—'}`} size="small" />
+                    </Box>
+                    <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 1 }}>
+                      <Typography variant="body2">
+                        <strong>Số Serial:</strong> {(selected as DroneRegistrationApplication).serialNumber}
+                      </Typography>
+                      <Typography variant="body2">
+                        <strong>Số đăng ký:</strong> {(selected as DroneRegistrationApplication).registrationNumber}
+                      </Typography>
+                      <Typography variant="body2">
+                        <strong>Hạn đăng ký/kiểm định:</strong> {(selected as DroneRegistrationApplication).registrationExpiresAt ? new Date((selected as DroneRegistrationApplication).registrationExpiresAt).toLocaleDateString() : '—'}
+                      </Typography>
+                    </Box>
+                  </Stack>
+                )}
+              </Paper>
+            )}
+
+            {evidenceLoading && <Typography sx={{ py: 2 }}>Đang tải hình ảnh và tài liệu bằng chứng…</Typography>}
             {evidenceUrls.map(({ label, url }) => (
-              <Box key={url} sx={{ display: 'grid', gap: 0.5 }}>
-                <Typography variant="subtitle2">{label}</Typography>
-                <Box component="iframe" src={url} title={label} sx={{ width: '100%', height: 320, border: 1, borderColor: 'divider', borderRadius: 1 }} />
+              <Box key={url} sx={{ display: 'grid', gap: 1, p: 2, border: '1px solid #eaecf0', borderRadius: 2, bgcolor: '#ffffff' }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#334155' }}>
+                    📎 {label}
+                  </Typography>
+                  <Button size="small" variant="text" href={url} target="_blank" rel="noopener noreferrer">
+                    Mở ảnh kích thước lớn
+                  </Button>
+                </Box>
+                <Box component="iframe" src={url} title={label} sx={{ width: '100%', height: 380, border: '1px solid #cbd5e1', borderRadius: 1.5, bgcolor: '#f8fafc' }} />
               </Box>
             ))}
-            {panel === 'Inspector partners' && action === 'approve' && <TextField label="Verified partner contract file key" value={partnerContractFileKey} onChange={(event) => setPartnerContractFileKey(event.target.value)} required fullWidth />}
-            {panel !== 'Drone registrations' && action === 'approve' && <TextField label="Review note" value={reviewNote} onChange={(event) => setReviewNote(event.target.value)} required={panel === 'Customer airspace'} multiline minRows={2} fullWidth />}
-            {action === 'reject' && <TextField label="Rejection reason" value={reviewNote} onChange={(event) => setReviewNote(event.target.value)} required multiline minRows={3} fullWidth />}
+
+            {panel === 'Inspector partners' && action === 'approve' && (
+              <TextField label="Verified partner contract file key" value={partnerContractFileKey} onChange={(event) => setPartnerContractFileKey(event.target.value)} required fullWidth />
+            )}
+            {panel !== 'Drone registrations' && action === 'approve' && (
+              <TextField label="Review note" value={reviewNote} onChange={(event) => setReviewNote(event.target.value)} required={panel === 'Customer airspace'} multiline minRows={2} fullWidth />
+            )}
+            {action === 'approve' && panel === 'Drone registrations' && (
+              <Alert severity="success">
+                Xác nhận phê duyệt: Số Serial và thông số kỹ thuật thiết bị trùng khớp với hình ảnh Giấy đăng ký, Giấy tờ sở hữu và Giấy kiểm định còn hiệu lực.
+              </Alert>
+            )}
+            {action === 'reject' && (
+              <TextField label="Lý do từ chối (Nêu rõ tài liệu chưa đạt)" value={reviewNote} onChange={(event) => setReviewNote(event.target.value)} required multiline minRows={3} fullWidth placeholder="VD: Ảnh giấy kiểm định mờ không đọc rõ số hiệu; serial number trên ảnh không trùng khớp..." />
+            )}
             {error && <Alert severity="error">{error}</Alert>}
           </Stack>
         </DialogContent>

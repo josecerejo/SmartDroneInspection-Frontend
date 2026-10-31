@@ -5,6 +5,11 @@ import {
   Box,
   Button,
   Checkbox,
+  Chip,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   IconButton,
   InputAdornment,
   Link,
@@ -22,6 +27,7 @@ import {
   evaluateAirspace,
   getAuthErrorMessage,
   registerOrganization,
+  sendRegistrationOtp,
   type AirspaceEvaluationResponse,
 } from '../api/authApi';
 import {
@@ -91,6 +97,23 @@ export default function RegisterPage() {
   const [categories, setCategories] = useState<Array<{ id: string; name: string; active: boolean }>>([]);
   const [categoryError, setCategoryError] = useState<string | null>(null);
 
+  const [phoneNumber, setPhoneNumber] = useState('');
+  const [otpDialogOpen, setOtpDialogOpen] = useState(false);
+  const [otpCode, setOtpCode] = useState('');
+  const [challengeToken, setChallengeToken] = useState<string | null>(null);
+  const [otpChannel, setOtpChannel] = useState<'EMAIL' | 'SMS'>('EMAIL');
+  const [sendingOtp, setSendingOtp] = useState(false);
+  const [verifyingOtp, setVerifyingOtp] = useState(false);
+  const [otpError, setOtpError] = useState<string | null>(null);
+  const [pendingFormValues, setPendingFormValues] = useState<OrganizationRegistrationFormValues | null>(null);
+  const [countdown, setCountdown] = useState(0);
+
+  useEffect(() => {
+    if (countdown <= 0) return;
+    const timer = setInterval(() => setCountdown((c) => c - 1), 1000);
+    return () => clearInterval(timer);
+  }, [countdown]);
+
   const form = useForm<OrganizationRegistrationFormValues>({
     resolver: zodResolver(organizationRegistrationSchema),
     defaultValues: {
@@ -150,16 +173,87 @@ export default function RegisterPage() {
   const onSubmit = async (values: OrganizationRegistrationFormValues) => {
     setErrorMessage(null);
     setRegistrationMessage(null);
+    if (evaluatingAirspace) {
+      setErrorMessage('Wait for the airspace advisory check to finish before submitting.');
+      return;
+    }
+    if (airspace?.classification === 'NO_FLY_ZONE') {
+      setErrorMessage(airspace.advisoryMessage);
+      return;
+    }
+
+    setSendingOtp(true);
+    setPendingFormValues(values);
     try {
-      if (evaluatingAirspace) {
-        setErrorMessage('Wait for the airspace advisory check to finish before submitting.');
-        return;
-      }
-      if (airspace?.classification === 'NO_FLY_ZONE') {
-        setErrorMessage(airspace.advisoryMessage);
-        return;
-      }
-      const result = await registerOrganization(values);
+      const channel = phoneNumber.trim() ? otpChannel : 'EMAIL';
+      const otpRes = await sendRegistrationOtp({
+        email: values.email,
+        phoneNumber: phoneNumber.trim() || undefined,
+        channel,
+      });
+      setChallengeToken(otpRes.challengeToken);
+      setOtpCode('');
+      setOtpError(null);
+      setCountdown(60);
+      setOtpDialogOpen(true);
+    } catch (error) {
+      setErrorMessage(getAuthErrorMessage(error));
+    } finally {
+      setSendingOtp(false);
+    }
+  };
+
+  const handleResendOtp = async () => {
+    if (!pendingFormValues || countdown > 0) return;
+    setSendingOtp(true);
+    setOtpError(null);
+    try {
+      const otpRes = await sendRegistrationOtp({
+        email: pendingFormValues.email,
+        phoneNumber: phoneNumber.trim() || undefined,
+        channel: otpChannel,
+      });
+      setChallengeToken(otpRes.challengeToken);
+      setCountdown(60);
+    } catch (err) {
+      setOtpError(getAuthErrorMessage(err));
+    } finally {
+      setSendingOtp(false);
+    }
+  };
+
+  const handleSwitchChannel = async (newChannel: 'EMAIL' | 'SMS') => {
+    if (newChannel === otpChannel || !pendingFormValues) return;
+    setOtpChannel(newChannel);
+    setSendingOtp(true);
+    setOtpError(null);
+    try {
+      const otpRes = await sendRegistrationOtp({
+        email: pendingFormValues.email,
+        phoneNumber: phoneNumber.trim() || undefined,
+        channel: newChannel,
+      });
+      setChallengeToken(otpRes.challengeToken);
+      setCountdown(60);
+    } catch (err) {
+      setOtpError(getAuthErrorMessage(err));
+    } finally {
+      setSendingOtp(false);
+    }
+  };
+
+  const handleConfirmOtp = async () => {
+    if (!pendingFormValues || !challengeToken || otpCode.length !== 6) return;
+    setVerifyingOtp(true);
+    setOtpError(null);
+    try {
+      const result = await registerOrganization({
+        ...pendingFormValues,
+        phoneNumber: phoneNumber.trim() || undefined,
+        otpChallengeToken: challengeToken,
+        otpCode: otpCode.trim(),
+      });
+      setOtpDialogOpen(false);
       if (result.registrationStatus === 'PENDING_AIRSPACE_REVIEW') {
         setRegistrationMessage(
           result.reviewMessage ||
@@ -169,10 +263,12 @@ export default function RegisterPage() {
       }
       navigate('/login?registered=1', {
         replace: true,
-        state: { email: values.email },
+        state: { email: pendingFormValues.email },
       });
-    } catch (error) {
-      setErrorMessage(getAuthErrorMessage(error));
+    } catch (err) {
+      setOtpError(getAuthErrorMessage(err));
+    } finally {
+      setVerifyingOtp(false);
     }
   };
 
@@ -242,6 +338,15 @@ export default function RegisterPage() {
             sx={authInputSx}
           />
         </Box>
+
+        <TextField
+          label={t('Phone number (Optional for SMS OTP)')}
+          placeholder="0912345678"
+          value={phoneNumber}
+          onChange={(e) => setPhoneNumber(e.target.value)}
+          fullWidth
+          sx={authInputSx}
+        />
 
         <Typography variant="subtitle2">{t('First asset')}</Typography>
         {categoryError && <Alert severity="error">{t(categoryError)}</Alert>}
@@ -413,7 +518,7 @@ export default function RegisterPage() {
           type="submit"
           variant="contained"
           size="large"
-          disabled={form.formState.isSubmitting}
+          disabled={form.formState.isSubmitting || sendingOtp}
           sx={{
             minHeight: 46,
             borderRadius: '8px',
@@ -430,9 +535,100 @@ export default function RegisterPage() {
             },
           }}
         >
-          {form.formState.isSubmitting ? 'Creating account…' : 'Create account'}
+          {sendingOtp ? 'Đang gửi mã OTP…' : form.formState.isSubmitting ? 'Creating account…' : 'Create account'}
         </Button>
       </Stack>
+
+      {/* OTP VERIFICATION DIALOG FOR CUSTOMER REGISTRATION */}
+      <Dialog
+        open={otpDialogOpen}
+        onClose={() => setOtpDialogOpen(false)}
+        maxWidth="xs"
+        fullWidth
+        slotProps={{ paper: { sx: { borderRadius: '16px', p: 1 } } }}
+      >
+        <DialogTitle sx={{ fontWeight: 700, pb: 1 }}>
+          Xác thực OTP tạo tài khoản
+        </DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ mt: 1 }}>
+            <Typography variant="body2" color="text.secondary">
+              Mã xác thực 6 chữ số đã được gửi tới{' '}
+              <strong>
+                {otpChannel === 'SMS' && pendingFormValues?.phoneNumber
+                  ? pendingFormValues.phoneNumber
+                  : pendingFormValues?.email}
+              </strong>
+              . Vui lòng nhập mã để hoàn tất đăng ký tài khoản.
+            </Typography>
+
+            {pendingFormValues?.phoneNumber && (
+              <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
+                <Chip
+                  label="Gửi qua Email"
+                  clickable
+                  color={otpChannel === 'EMAIL' ? 'primary' : 'default'}
+                  onClick={() => void handleSwitchChannel('EMAIL')}
+                />
+                <Chip
+                  label="Gửi qua SMS"
+                  clickable
+                  color={otpChannel === 'SMS' ? 'primary' : 'default'}
+                  onClick={() => void handleSwitchChannel('SMS')}
+                />
+              </Stack>
+            )}
+
+            <TextField
+              autoFocus
+              label="Mã OTP (6 chữ số)"
+              value={otpCode}
+              onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+              slotProps={{
+                htmlInput: {
+                  maxLength: 6,
+                  style: {
+                    textAlign: 'center',
+                    letterSpacing: '8px',
+                    fontSize: '22px',
+                    fontWeight: 'bold',
+                  },
+                },
+              }}
+              fullWidth
+              required
+            />
+
+            {otpError && <Alert severity="error">{otpError}</Alert>}
+
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Typography variant="caption" color="text.secondary">
+                {countdown > 0 ? `Gửi lại sau ${countdown}s` : ''}
+              </Typography>
+              <Button
+                size="small"
+                disabled={countdown > 0 || sendingOtp}
+                onClick={() => void handleResendOtp()}
+              >
+                Gửi lại mã OTP
+              </Button>
+            </Box>
+          </Stack>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setOtpDialogOpen(false)} disabled={verifyingOtp}>
+            Hủy
+          </Button>
+          <Button
+            variant="contained"
+            disabled={otpCode.length !== 6 || verifyingOtp}
+            onClick={() => void handleConfirmOtp()}
+            sx={{ bgcolor: '#087E8B', '&:hover': { bgcolor: '#066B70' } }}
+          >
+            {verifyingOtp ? 'Đang xác thực…' : 'Xác nhận & Tạo tài khoản'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </AuthPageLayout>
   );
 }

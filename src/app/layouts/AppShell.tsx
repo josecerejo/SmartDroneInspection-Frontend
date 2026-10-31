@@ -84,10 +84,11 @@ const NAV_ITEMS = [
   { section: 'asset-catalog', icon: <CategoryIcon /> },
   { section: 'asset-review', icon: <FactCheckIcon /> },
   { section: 'inspections', icon: <FlightTakeoffIcon /> },
+  { section: 'inspector-drones', icon: <FlightRounded /> },
+  { section: 'onboarding-reviews', icon: <FactCheckIcon /> },
   { section: 'maintenance', icon: <BuildIcon /> },
   { section: 'workforce', icon: <GroupsIcon /> },
   { section: 'subscriptions', icon: <CardMembershipRounded /> },
-  { section: 'drone-leasing', icon: <FlightRounded /> },
   { section: 'platform-users', icon: <ManageAccountsIcon /> },
   { section: 'settings', icon: <SettingsOutlined /> },
 ] as const;

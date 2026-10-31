@@ -90,12 +90,6 @@ const PlatformSubscriptionsPage = lazy(
 const ClientSubscriptionPage = lazy(
   () => import('@/features/subscription/pages/ClientSubscriptionPage'),
 );
-const PlatformDroneLeasingPage = lazy(
-  () => import('@/features/assets/pages/PlatformDroneLeasingPage'),
-);
-const ClientDroneLeasingPage = lazy(
-  () => import('@/features/assets/pages/ClientDroneLeasingPage'),
-);
 const PlatformUsersPage = lazy(
   () => import('@/features/admin/pages/PlatformUsersPage'),
 );
@@ -118,15 +112,6 @@ function SubscriptionsSectionRoute() {
   );
 }
 
-function DroneLeasingSectionRoute() {
-  const location = useLocation();
-  return location.pathname.startsWith('/admin') ? (
-    <PlatformDroneLeasingPage />
-  ) : (
-    <ClientDroneLeasingPage />
-  );
-}
-
 const SECTION_ELEMENTS: Record<SectionId, ReactNode> = {
   dashboard: <DashboardPage />,
   contracts: <ContractsPage />,
@@ -138,7 +123,6 @@ const SECTION_ELEMENTS: Record<SectionId, ReactNode> = {
   maintenance: <MaintenancePage />,
   workforce: <WorkforcePage />,
   subscriptions: <SubscriptionsSectionRoute />,
-  'drone-leasing': <DroneLeasingSectionRoute />,
   'platform-users': <PlatformUsersPage />,
   'finance-settings': <PlatformFinanceSettingsPage />,
   'onboarding-reviews': <Mf1ReviewPage />,

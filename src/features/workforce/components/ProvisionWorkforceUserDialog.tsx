@@ -22,7 +22,6 @@ import {
 } from '../api/workforceApi';
 
 const ROLE_LABELS: Record<GrantableWorkforceRole, string> = {
-  INSPECTOR: 'Inspector',
   MAINTENANCE_ENGINEER: 'Maintenance engineer',
 };
 
@@ -65,7 +64,7 @@ function ProvisionForm({
   const { t } = useLocale();
   const [email, setEmail] = useState('');
   const [fullName, setFullName] = useState('');
-  const [roles, setRoles] = useState<GrantableWorkforceRole[]>([]);
+  const [roles, setRoles] = useState<GrantableWorkforceRole[]>(['MAINTENANCE_ENGINEER']);
   const [errors, setErrors] = useState<{ email?: string; fullName?: string; roles?: string }>({});
 
   const submit = (event: FormEvent) => {

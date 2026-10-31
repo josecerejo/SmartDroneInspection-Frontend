@@ -39,7 +39,6 @@ import {
 } from '../hooks/useWorkforce';
 
 const ROLE_LABELS: Record<GrantableWorkforceRole, string> = {
-  INSPECTOR: 'Inspector',
   MAINTENANCE_ENGINEER: 'Maintenance engineer',
 };
 
@@ -125,7 +124,7 @@ export default function WorkforcePage() {
     <Box className="workspace-page workspace-page--workforce">
       <PageHeader
         title={t('Workforce')}
-        subtitle={t('Inspectors and maintenance engineers in your organization')}
+        subtitle={t('Maintenance engineers in your organization')}
         actions={provisionButton}
       />
 
@@ -143,7 +142,7 @@ export default function WorkforcePage() {
         empty={
           <EmptyState
             title={t('No workforce users yet')}
-            description={t('Provision an inspector or maintenance engineer to assign inspection and maintenance work.')}
+            description={t('Provision a maintenance engineer to assign maintenance work.')}
             action={provisionButton}
           />
         }

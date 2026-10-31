@@ -8,7 +8,6 @@ import { api } from '@/shared/api/client';
  * enforcement boundary — this list only keeps the UI from offering a request it knows is refused.
  */
 export const GRANTABLE_WORKFORCE_ROLES = [
-  'INSPECTOR',
   'MAINTENANCE_ENGINEER',
 ] as const;
 

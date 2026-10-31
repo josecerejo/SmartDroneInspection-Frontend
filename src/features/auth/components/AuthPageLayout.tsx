@@ -79,6 +79,7 @@ interface AuthPageLayoutProps extends PropsWithChildren {
   heroTagline?: { line1: string; line2: string };
   socialPrompt?: string;
   showSocial?: boolean;
+  onGoogleClick?: () => void;
   footer?: ReactNode;
   workspaceCopy?: { sideLabel: string; sideTitle: string; sideBody: string };
   sideLabels?: readonly string[];
@@ -99,6 +100,7 @@ export function AuthPageLayout({
   },
   socialPrompt = 'Or register with',
   showSocial = true,
+  onGoogleClick,
   footer,
   children,
 }: AuthPageLayoutProps) {
@@ -365,6 +367,7 @@ export function AuthPageLayout({
                     type="button"
                     variant="outlined"
                     startIcon={<GoogleIcon />}
+                    onClick={onGoogleClick}
                     sx={{
                       height: 44,
                       borderRadius: '8px',

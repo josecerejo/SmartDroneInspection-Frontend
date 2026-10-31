@@ -71,7 +71,7 @@ describe('browser auth API', () => {
       password: 'secret password',
     }, 30_000);
     expect(result).toEqual(authenticatedFlow);
-    expect(result.user.visionFallbackEnabled).toBe(true);
+    expect(result.user?.visionFallbackEnabled).toBe(true);
     expect(result.user).not.toHaveProperty('providerId');
     expect(result).not.toHaveProperty('refreshToken');
   });
@@ -96,7 +96,7 @@ describe('browser auth API', () => {
 
     const result = await login('org-manager@example.com', 'secret password');
 
-    expect(result.user.roles).toEqual([
+    expect(result.user?.roles).toEqual([
       'ADMIN',
       'MANAGER',
       'CUSTOMER',
@@ -209,7 +209,7 @@ describe('browser auth API', () => {
       },
     });
     expect(result.organizationCode).toBe('EXAMPLE');
-    expect(result.user.roles).toEqual(['CUSTOMER']);
+    expect(result.user?.roles).toEqual(['CUSTOMER']);
   });
 
   it('uses CSRF-protected browser endpoints for one-device and all-device logout', async () => {
@@ -249,8 +249,8 @@ describe('browser auth API', () => {
     });
 
     const result = await login('partner@example.com', 'secret password');
-    expect(result.user.roles).toEqual(['CUSTOMER', 'MANAGER']);
-    expect(result.user.actorZone).toBe('INSPECTOR_PARTNER');
+    expect(result.user?.roles).toEqual(['CUSTOMER', 'MANAGER']);
+    expect(result.user?.actorZone).toBe('INSPECTOR_PARTNER');
   });
 
   it('accepts first asset data and handles pending airspace review response in customer registration', async () => {
@@ -305,7 +305,7 @@ describe('browser auth API', () => {
     });
     expect(result.registrationStatus).toBe('PENDING_AIRSPACE_REVIEW');
     expect(result.airspaceReviewId).toBe('review-123');
-    expect(result.user.actorZone).toBe('PROSPECT_CUSTOMER');
+    expect(result.user?.actorZone).toBe('PROSPECT_CUSTOMER');
   });
 
   it('evaluates airspace advisory before submission', async () => {
