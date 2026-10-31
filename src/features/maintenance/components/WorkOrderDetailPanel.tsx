@@ -337,21 +337,10 @@ function AssignTeamDialog({
   const currentUser = useAuthStore((state) => state.user);
 
   const engineers = useMemo(() => {
-    const list = (workforce.data ?? []).filter(
+    return (workforce.data ?? []).filter(
       (member) => member.roles.includes('MAINTENANCE_ENGINEER') && member.status === 'ACTIVE',
     );
-    if (list.length > 0) return list;
-    return [
-      {
-        userId: 'e489f8ab-1996-40d9-9950-68fb6a5f485f',
-        email: 'engineer@smartdrone.local',
-        fullName: 'Le Van Engineer',
-        roles: ['MAINTENANCE_ENGINEER'],
-        status: 'ACTIVE',
-        organizationId: currentUser?.organizationId ?? '',
-      },
-    ];
-  }, [workforce.data, currentUser]);
+  }, [workforce.data]);
 
   const orgAdmins = useMemo(() => {
     const list = (workforce.data ?? []).filter(
@@ -538,13 +527,7 @@ function ExecutionTab({
         },
       ];
     }
-    return [
-      {
-        userId: 'e489f8ab-1996-40d9-9950-68fb6a5f485f',
-        email: 'engineer@smartdrone.local',
-        fullName: 'Le Van Engineer',
-      },
-    ];
+    return [];
   }, [team.data, workforce.data, currentUser]);
 
   const [taskOpen, setTaskOpen] = useState(false);
