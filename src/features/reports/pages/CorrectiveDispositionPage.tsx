@@ -181,12 +181,7 @@ export default function CorrectiveDispositionPage() {
               )}
             </Stack>
 
-            {workflow.data?.status === 'COMPLETED' ? (
-              <Alert severity="success" icon={<CheckCircleOutlineRounded />}>
-                This inspection is complete. Its maintenance decision is final; additional findings
-                cannot be forwarded from this inspection.
-              </Alert>
-            ) : officialFindings.length === 0 ? (
+            {officialFindings.length === 0 ? (
               <Alert severity="info">
                 No confirmed findings are awaiting maintenance. The published report records the
                 Inspector’s explicit no-findings acknowledgment and observed coverage.
