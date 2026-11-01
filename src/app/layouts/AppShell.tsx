@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Link as RouterLink,
   Outlet,
@@ -97,8 +97,44 @@ export function AppShell({ portal }: AppShellProps) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   useNotificationSessionSync();
-  const isDesktop = useMediaQuery(theme.breakpoints.up('md'));
-  const [navVisible, setNavVisible] = useState(true);
+  const isDesktop = useMediaQuery(theme.breakpoints.up('sm'));
+
+  // Synchronized sidebar state across windows and tabs
+  const [navVisible, setNavVisibleState] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem('sdi_sidebar_visible');
+      return saved !== null ? saved === 'true' : true;
+    } catch {
+      return true;
+    }
+  });
+
+  const toggleNav = () => {
+    if (isDesktop) {
+      setNavVisibleState((prev) => {
+        const next = !prev;
+        try {
+          localStorage.setItem('sdi_sidebar_visible', String(next));
+        } catch {
+          // ignore
+        }
+        return next;
+      });
+    } else {
+      setMobileOpen((prev) => !prev);
+    }
+  };
+
+  useEffect(() => {
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === 'sdi_sidebar_visible' && e.newValue !== null) {
+        setNavVisibleState(e.newValue === 'true');
+      }
+    };
+    window.addEventListener('storage', handleStorage);
+    return () => window.removeEventListener('storage', handleStorage);
+  }, []);
+
   const [mobileOpen, setMobileOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [accountMenuAnchor, setAccountMenuAnchor] = useState<HTMLElement | null>(null);
@@ -146,7 +182,7 @@ export function AppShell({ portal }: AppShellProps) {
             <Box component="img" src="/images/landing/teal-soft-dark-v1.png" alt="" aria-hidden="true" sx={{ display: 'block', width: '100%', height: '100%', objectFit: 'cover' }} />
           </Box>
           <Typography variant="subtitle2" noWrap sx={{ fontWeight: 650, letterSpacing: '-.025em' }}>
-            SmartDroneInspection
+            SDI
           </Typography>
         </Box>
       </Box>
@@ -292,9 +328,9 @@ export function AppShell({ portal }: AppShellProps) {
         position="fixed"
         color="inherit"
         sx={{
-          zIndex: (t) => t.zIndex.drawer + 1,
-          left: { xs: 0, md: navVisible ? `${DRAWER_WIDTH}px` : 0 },
-          width: { xs: '100%', md: navVisible ? `calc(100% - ${DRAWER_WIDTH}px)` : '100%' },
+          zIndex: (t) => (isDesktop ? t.zIndex.drawer + 1 : t.zIndex.drawer - 1),
+          left: { xs: 0, sm: navVisible ? `${DRAWER_WIDTH}px` : 0 },
+          width: { xs: '100%', sm: navVisible ? `calc(100% - ${DRAWER_WIDTH}px)` : '100%' },
           transition: 'left 200ms ease, width 200ms ease',
           height: layoutTokens.shellHeaderHeight,
           bgcolor: 'background.paper',
@@ -308,10 +344,10 @@ export function AppShell({ portal }: AppShellProps) {
           <IconButton
             edge="start"
             aria-label={navVisible ? 'Hide sidebar' : 'Show sidebar'}
-            onClick={() => (isDesktop ? setNavVisible((prev) => !prev) : setMobileOpen(true))}
+            onClick={toggleNav}
             sx={{ mr: 1, color: 'text.primary' }}
           >
-            {isDesktop ? (navVisible ? <MenuOpenRounded /> : <MenuIcon />) : <MenuIcon />}
+            {navVisible ? <MenuOpenRounded /> : <MenuIcon />}
           </IconButton>
           <Typography component="h1" variant="h6" noWrap sx={{ flexGrow: 1, ml: { xs: 0.5, md: 0 }, fontSize: 16, fontWeight: 600 }}>
             {getPageLabel(location.pathname, portal, locale)}
@@ -346,6 +382,7 @@ export function AppShell({ portal }: AppShellProps) {
           width: isDesktop ? (navVisible ? DRAWER_WIDTH : 0) : undefined,
           flexShrink: 0,
           transition: 'width 200ms ease',
+          zIndex: (t) => (isDesktop ? undefined : t.zIndex.drawer + 2),
           '& .MuiDrawer-paper': {
             width: DRAWER_WIDTH,
             boxSizing: 'border-box',

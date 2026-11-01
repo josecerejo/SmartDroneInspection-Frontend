@@ -277,7 +277,7 @@ export default function ClientSubscriptionPage() {
                   <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
                     <CardMembershipRounded sx={{ color: '#0A968A', fontSize: 28 }} />
                     <Typography variant="h6" sx={{ fontWeight: 700, color: 'text.primary' }}>
-                      SmartDroneInspection Enterprise
+                      SDI Enterprise
                     </Typography>
                     <StatusChip status={current?.status ?? 'EXPIRED'} />
                   </Stack>
