@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { Add, DeleteOutlined } from '@mui/icons-material';
+import { Add, EditOutlined } from '@mui/icons-material';
 import {
   Alert,
   Box,
@@ -7,7 +7,6 @@ import {
   Card,
   CardContent,
   Chip,
-  MenuItem,
   Stack,
   TextField,
   Typography,
@@ -15,32 +14,39 @@ import {
 import { getErrorMessage } from '@/shared/api/errorMessage';
 import { PageHeader } from '@/shared/ui/PageHeader';
 import { QueryState } from '@/shared/ui/QueryState';
-import type { FrequencyUnit } from '../api/catalogApi';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 import {
-  useAddFrequency,
   useCategories,
   useCreateCategory,
-  useDeleteFrequency,
-  useFrequencies,
+  useUpdateCategory,
 } from '../hooks/useCatalog';
-
-const FREQUENCY_UNITS: FrequencyUnit[] = ['DAY', 'WEEK', 'MONTH', 'YEAR'];
 
 export default function AssetCatalogPage() {
   const { t } = useLocale();
   const categories = useCategories();
   const createCategory = useCreateCategory();
+  const updateCategory = useUpdateCategory();
   const [selectedCategoryId, setSelectedCategoryId] = useState('');
-  const frequencies = useFrequencies(selectedCategoryId);
-  const addFrequency = useAddFrequency(selectedCategoryId);
-  const deleteFrequency = useDeleteFrequency(selectedCategoryId);
 
+  // New category form
   const [code, setCode] = useState('');
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
-  const [unit, setUnit] = useState<FrequencyUnit>('MONTH');
-  const [interval, setIntervalValue] = useState('3');
+
+  // Edit category form
+  const [editName, setEditName] = useState('');
+  const [editDescription, setEditDescription] = useState('');
+
+  const selectedCategory = categories.data?.find((c) => c.id === selectedCategoryId);
+
+  const handleSelectCategory = (categoryId: string) => {
+    setSelectedCategoryId(categoryId);
+    const cat = categories.data?.find((c) => c.id === categoryId);
+    if (cat) {
+      setEditName(cat.name);
+      setEditDescription(cat.description || '');
+    }
+  };
 
   const submitCategory = (event: FormEvent) => {
     event.preventDefault();
@@ -51,25 +57,30 @@ export default function AssetCatalogPage() {
           setCode('');
           setName('');
           setDescription('');
-          setSelectedCategoryId(category.id);
+          handleSelectCategory(category.id);
         },
       },
     );
   };
 
-  const submitFrequency = (event: FormEvent) => {
+  const submitEditCategory = (event: FormEvent) => {
     event.preventDefault();
-    addFrequency.mutate(
-      { frequencyUnit: unit, frequencyInterval: Number(interval) },
-      { onSuccess: () => setIntervalValue('3') },
-    );
+    if (!selectedCategory) return;
+    updateCategory.mutate({
+      id: selectedCategory.id,
+      input: {
+        code: selectedCategory.code,
+        name: editName,
+        description: editDescription || null,
+      },
+    });
   };
 
   return (
     <Box className="workspace-page workspace-page--catalog">
       <PageHeader
         title={t('Asset catalog')}
-        subtitle={t('Maintain inspection categories and the frequencies suggested for each one')}
+        subtitle={t('Maintain standardized infrastructure inspection classifications and technical categories')}
       />
       <Stack direction={{ xs: 'column', md: 'row' }} spacing={3} sx={{ alignItems: 'flex-start' }}>
         <Card variant="outlined" sx={{ flex: 1, width: '100%' }}>
@@ -89,10 +100,15 @@ export default function AssetCatalogPage() {
                   <Button
                     key={category.id}
                     variant={category.id === selectedCategoryId ? 'contained' : 'outlined'}
-                    onClick={() => setSelectedCategoryId(category.id)}
+                    onClick={() => handleSelectCategory(category.id)}
                     sx={{ justifyContent: 'space-between' }}
                   >
-                    {category.name} ({category.code})
+                    <span>{category.name}</span>
+                    <Chip
+                      size="small"
+                      label={category.code}
+                      sx={{ ml: 1, bgcolor: category.id === selectedCategoryId ? 'rgba(255,255,255,0.2)' : undefined }}
+                    />
                   </Button>
                 ))}
               </Stack>
@@ -144,83 +160,56 @@ export default function AssetCatalogPage() {
         <Card variant="outlined" sx={{ flex: 1, width: '100%' }}>
           <CardContent>
             <Typography variant="h6" gutterBottom>
-              {t('Suggested frequencies')}
+              {t('Category details')}
             </Typography>
-            {!selectedCategoryId ? (
-              <Alert severity="info">{t('Select a category to manage its suggested frequencies.')}</Alert>
+            {!selectedCategory ? (
+              <Alert severity="info">{t('Select a category to view or edit details.')}</Alert>
             ) : (
-              <>
-                <QueryState
-                  isLoading={frequencies.isLoading}
-                  error={frequencies.error}
-                  onRetry={() => void frequencies.refetch()}
-                  isEmpty={Boolean(frequencies.data && frequencies.data.length === 0)}
-                  empty={
-                    <Alert severity="warning">
-                      No suggested frequency yet. An asset review in this category will fail until
-                      one exists.
+              <Box component="form" onSubmit={submitEditCategory} sx={{ mt: 1 }}>
+                <Stack spacing={2}>
+                  {updateCategory.isError && (
+                    <Alert severity="error">
+                      {getErrorMessage(updateCategory.error, 'Could not update the category.')}
                     </Alert>
-                  }
-                >
-                  <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }}>
-                    {frequencies.data?.map((frequency) => (
-                      <Chip
-                        key={frequency.id}
-                        label={`Every ${frequency.frequencyInterval} ${frequency.frequencyUnit.toLowerCase()}(s)`}
-                        onDelete={
-                          deleteFrequency.isPending
-                            ? undefined
-                            : () => deleteFrequency.mutate(frequency.id)
-                        }
-                        deleteIcon={<DeleteOutlined />}
-                      />
-                    ))}
-                  </Stack>
-                </QueryState>
-
-                <Box component="form" onSubmit={submitFrequency} sx={{ mt: 3 }}>
-                  <Stack spacing={2}>
-                    {(addFrequency.isError || deleteFrequency.isError) && (
-                      <Alert severity="error">
-                        {getErrorMessage(
-                          addFrequency.error ?? deleteFrequency.error,
-                          'Could not update the suggested frequencies.',
-                        )}
-                      </Alert>
-                    )}
-                    <TextField
-                      select
-                      size="small"
-                      label={t('Unit')}
-                      value={unit}
-                      onChange={(event) => setUnit(event.target.value as FrequencyUnit)}
-                    >
-                      {FREQUENCY_UNITS.map((value) => (
-                        <MenuItem key={value} value={value}>
-                          {value}
-                        </MenuItem>
-                      ))}
-                    </TextField>
-                    <TextField
-                      required
-                      size="small"
-                      type="number"
-                      label={t('Interval')}
-                      value={interval}
-                      onChange={(event) => setIntervalValue(event.target.value)}
-                      slotProps={{ htmlInput: { min: 1 } }}
-                    />
-                    <Button
-                      type="submit"
-                      variant="contained"
-                      startIcon={<Add />}
-                      disabled={addFrequency.isPending}
-                    >
-                      {t('Add frequency')}
-                    </Button>
-                  </Stack>
-                </Box>
-              </>
+                  )}
+                  {updateCategory.isSuccess && (
+                    <Alert severity="success">
+                      {t('Category updated successfully.')}
+                    </Alert>
+                  )}
+                  <TextField
+                    disabled
+                    size="small"
+                    label={t('Category Code')}
+                    value={selectedCategory.code}
+                    helperText={t('Standardized code is immutable once provisioned.')}
+                  />
+                  <TextField
+                    required
+                    size="small"
+                    label={t('Name')}
+                    value={editName}
+                    onChange={(event) => setEditName(event.target.value)}
+                  />
+                  <TextField
+                    size="small"
+                    multiline
+                    rows={3}
+                    label={t('Description')}
+                    value={editDescription}
+                    onChange={(event) => setEditDescription(event.target.value)}
+                  />
+                  <Button
+                    type="submit"
+                    variant="contained"
+                    startIcon={<EditOutlined />}
+                    disabled={updateCategory.isPending}
+                    sx={{ alignSelf: 'flex-start' }}
+                  >
+                    {updateCategory.isPending ? t('Saving…') : t('Update category')}
+                  </Button>
+                </Stack>
+              </Box>
             )}
           </CardContent>
         </Card>

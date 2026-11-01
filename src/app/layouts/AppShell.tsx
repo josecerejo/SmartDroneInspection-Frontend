@@ -32,7 +32,6 @@ import DashboardIcon from '@mui/icons-material/Dashboard';
 import AssignmentIcon from '@mui/icons-material/Assignment';
 import ApartmentIcon from '@mui/icons-material/Apartment';
 import CategoryIcon from '@mui/icons-material/Category';
-import FactCheckIcon from '@mui/icons-material/FactCheck';
 import FlightTakeoffIcon from '@mui/icons-material/FlightTakeoff';
 import CalendarMonthOutlinedIcon from '@mui/icons-material/CalendarMonthOutlined';
 import BuildIcon from '@mui/icons-material/Build';
@@ -80,7 +79,6 @@ const NAV_ITEMS = [
   { section: 'schedule', icon: <CalendarMonthOutlinedIcon />, path: '/operations/inspections?view=calendar' },
   { section: 'assets', icon: <ApartmentIcon /> },
   { section: 'asset-catalog', icon: <CategoryIcon /> },
-  { section: 'asset-review', icon: <FactCheckIcon /> },
   { section: 'inspections', icon: <FlightTakeoffIcon /> },
   { section: 'maintenance', icon: <BuildIcon /> },
   { section: 'workforce', icon: <GroupsIcon /> },

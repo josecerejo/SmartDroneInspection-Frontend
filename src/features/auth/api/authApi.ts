@@ -288,7 +288,7 @@ export async function fetchCurrentUser(accessToken?: string): Promise<AuthUser> 
   const config = accessToken
     ? { headers: { Authorization: `Bearer ${accessToken}` } }
     : undefined;
-  const { data } = await api.get<unknown>('/auth/me', config);
+  const { data } = await api.get<unknown>('/users/me', config);
   return parseUser(data);
 }
 
