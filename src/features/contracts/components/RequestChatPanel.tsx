@@ -16,6 +16,7 @@ import ForumOutlinedIcon from '@mui/icons-material/ForumOutlined';
 import PersonOutlineRoundedIcon from '@mui/icons-material/PersonOutlineRounded';
 import SupportAgentRoundedIcon from '@mui/icons-material/SupportAgentRounded';
 import { useAuthStore } from '@/features/auth/store/authStore';
+import { useLocale } from '@/shared/i18n/LocaleProvider';
 import { LoadingButton } from '@/shared/ui/LoadingButton';
 import { type ServiceRequest } from '../api/contractApi';
 import { usePostRequestMessage } from '../hooks/useContracts';
@@ -27,13 +28,14 @@ interface RequestChatPanelProps {
 }
 
 const QUICK_PROMPTS = [
-  '🗓️ Đề xuất khung giờ bay vào sáng sớm (07:00–09:00)',
-  '🚁 Yêu cầu bổ sung drone chuyên dụng camera nhiệt/zoom quang học',
-  '💰 Đề nghị điều chỉnh mức dự toán chi phí phù hợp ngân sách',
-  '📄 Yêu cầu cấp giấy phép bay đặc khu quân sự/an ninh',
+  'Propose early morning flight window (07:00 - 09:00)',
+  'Request thermal / optical zoom payload drone',
+  'Request quote adjustment to match project budget',
+  'Clarify restricted airspace flight permit requirements',
 ];
 
 export function RequestChatPanel({ request, onChanged, onError }: RequestChatPanelProps) {
+  const { t } = useLocale();
   const currentUser = useAuthStore((state) => state.user);
   const post = usePostRequestMessage(request.id);
   const [body, setBody] = useState('');
@@ -62,7 +64,7 @@ export function RequestChatPanel({ request, onChanged, onError }: RequestChatPan
     <Card
       variant="outlined"
       sx={{
-        borderRadius: 3,
+        borderRadius: '16px',
         borderColor: 'divider',
         display: 'flex',
         flexDirection: 'column',
@@ -77,16 +79,16 @@ export function RequestChatPanel({ request, onChanged, onError }: RequestChatPan
             </Avatar>
             <Box>
               <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-                Trao đổi & Đàm phán Điều khoản
+                {t('Commercial Terms & Negotiation')}
               </Typography>
               <Typography variant="caption" color="text.secondary">
-                Kênh liên lạc trực tiếp giữa Khách hàng và Quản lý Dịch vụ cho yêu cầu này
+                {t('Direct communication channel between Customer and Platform Manager for this request')}
               </Typography>
             </Box>
           </Stack>
           <Chip
             size="small"
-            label={`${request.messages.length} tin nhắn`}
+            label={`${request.messages.length} ${t('messages')}`}
             color={request.messages.length > 0 ? 'primary' : 'default'}
             variant="outlined"
             sx={{ fontWeight: 600, fontSize: '0.75rem' }}
@@ -104,7 +106,7 @@ export function RequestChatPanel({ request, onChanged, onError }: RequestChatPan
           minHeight: 340,
           maxHeight: { xs: 420, md: 520 },
           overflowY: 'auto',
-          bgcolor: (theme) => (theme.palette.mode === 'dark' ? 'background.default' : '#f8fafc'),
+          bgcolor: 'background.default',
           display: 'flex',
           flexDirection: 'column',
           gap: 2,
@@ -114,7 +116,7 @@ export function RequestChatPanel({ request, onChanged, onError }: RequestChatPan
           },
           '&::-webkit-scrollbar-thumb': {
             bgcolor: 'divider',
-            borderRadius: 3,
+            borderRadius: '5px',
           },
         }}
       >
@@ -132,10 +134,10 @@ export function RequestChatPanel({ request, onChanged, onError }: RequestChatPan
           >
             <ForumOutlinedIcon sx={{ fontSize: 48, opacity: 0.25, mb: 1.5 }} />
             <Typography variant="body2" sx={{ fontWeight: 600 }}>
-              Chưa có tin nhắn đàm phán nào
+              {t('No negotiation messages yet')}
             </Typography>
             <Typography variant="caption" sx={{ maxWidth: 380, textAlign: 'center', mt: 0.75, color: 'text.secondary' }}>
-              Gửi tin nhắn hoặc chọn gợi ý nhanh bên dưới để làm rõ điều kiện bay, khung giờ và chi phí với đối tác.
+              {t('Send a message or select a quick prompt below to clarify flight windows, payload requirements, or pricing.')}
             </Typography>
           </Box>
         ) : (
@@ -171,18 +173,18 @@ export function RequestChatPanel({ request, onChanged, onError }: RequestChatPan
                     )
                   )}
                   <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.primary' }}>
-                    {isMe ? 'Bạn' : message.authorName || 'Đối tác'}
+                    {isMe ? t('You') : message.authorName || t('Partner')}
                   </Typography>
                   {authorRole && !isMe && (
                     <Chip
-                      label={isManager ? 'Quản lý Dịch vụ' : 'Khách hàng'}
+                      label={isManager ? t('Platform Manager') : t('Customer')}
                       size="small"
                       color={isManager ? 'info' : 'default'}
                       variant="outlined"
-                      sx={{ height: 18, fontSize: '0.68rem', fontWeight: 600 }}
+                      sx={{ height: 18, fontSize: '0.75rem', fontWeight: 600 }}
                     />
                   )}
-                  <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.72rem' }}>
+                  <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.75rem' }}>
                     {new Date(message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </Typography>
                 </Stack>
@@ -192,21 +194,11 @@ export function RequestChatPanel({ request, onChanged, onError }: RequestChatPan
                   sx={{
                     px: 2,
                     py: 1.25,
-                    borderRadius: isMe ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
-                    bgcolor: (theme) =>
-                      isMe
-                        ? theme.palette.mode === 'dark'
-                          ? 'primary.main'
-                          : 'primary.main'
-                        : theme.palette.mode === 'dark'
-                          ? 'background.paper'
-                          : '#ffffff',
+                    borderRadius: '10px',
+                    bgcolor: isMe ? 'primary.main' : 'background.paper',
                     color: isMe ? 'primary.contrastText' : 'text.primary',
                     border: isMe ? 'none' : '1px solid',
                     borderColor: 'divider',
-                    boxShadow: isMe
-                      ? '0 2px 6px rgba(0, 109, 119, 0.2)'
-                      : '0 1px 3px rgba(0,0,0,0.04)',
                   }}
                 >
                   <Typography
@@ -215,7 +207,7 @@ export function RequestChatPanel({ request, onChanged, onError }: RequestChatPan
                       whiteSpace: 'pre-wrap',
                       wordBreak: 'break-word',
                       lineHeight: 1.55,
-                      fontSize: '0.88rem',
+                      fontSize: '0.875rem',
                     }}
                   >
                     {message.body}
@@ -248,28 +240,31 @@ export function RequestChatPanel({ request, onChanged, onError }: RequestChatPan
             msOverflowStyle: 'none',
           }}
         >
-          {QUICK_PROMPTS.map((prompt, i) => (
-            <Chip
-              key={i}
-              label={prompt}
-              size="small"
-              clickable
-              onClick={() => {
-                setBody((prev) => (prev ? `${prev}\n${prompt}` : prompt));
-              }}
-              sx={{
-                fontSize: '0.78rem',
-                height: 28,
-                bgcolor: 'action.hover',
-                border: '1px solid',
-                borderColor: 'divider',
-                flexShrink: 0,
-                '&:hover': {
-                  bgcolor: 'action.selected',
-                },
-              }}
-            />
-          ))}
+          {QUICK_PROMPTS.map((prompt) => {
+            const localizedPrompt = t(prompt);
+            return (
+              <Chip
+                key={prompt}
+                label={localizedPrompt}
+                size="small"
+                clickable
+                onClick={() => {
+                  setBody((prev) => (prev ? `${prev}\n${localizedPrompt}` : localizedPrompt));
+                }}
+                sx={{
+                  fontSize: '0.75rem',
+                  height: 28,
+                  bgcolor: 'action.hover',
+                  border: '1px solid',
+                  borderColor: 'divider',
+                  flexShrink: 0,
+                  '&:hover': {
+                    bgcolor: 'action.selected',
+                  },
+                }}
+              />
+            );
+          })}
         </Stack>
       </Box>
 
@@ -284,7 +279,7 @@ export function RequestChatPanel({ request, onChanged, onError }: RequestChatPan
             multiline
             minRows={1}
             maxRows={4}
-            placeholder="Nhập nội dung trao đổi hoặc đàm phán điều khoản..."
+            placeholder={t('Enter message or commercial terms…')}
             value={body}
             onChange={(event) => setBody(event.target.value)}
             onKeyDown={(event) => {
@@ -295,13 +290,14 @@ export function RequestChatPanel({ request, onChanged, onError }: RequestChatPan
             }}
             slotProps={{
               input: {
-                sx: { borderRadius: 2, fontSize: '0.9rem' },
+                sx: { borderRadius: '8px', fontSize: '0.875rem' },
               },
             }}
           />
           <LoadingButton
             variant="contained"
             color="primary"
+            aria-label={t('Send message')}
             loading={post.isPending}
             disabled={!body.trim()}
             onClick={() => void send()}
@@ -309,15 +305,15 @@ export function RequestChatPanel({ request, onChanged, onError }: RequestChatPan
               minWidth: 44,
               width: 44,
               height: 40,
-              borderRadius: 2,
+              borderRadius: '8px',
               p: 0,
             }}
           >
             <SendRoundedIcon fontSize="small" />
           </LoadingButton>
         </Stack>
-        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5, fontSize: '0.7rem' }}>
-          💡 Mẹo: Bấm <strong>Enter</strong> để gửi tin nhắn, <strong>Shift + Enter</strong> để xuống dòng.
+        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5, fontSize: '0.75rem' }}>
+          {t('Press Enter to send, Shift + Enter for a new line.')}
         </Typography>
       </Box>
     </Card>

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import {
   Box,
+  Button,
   Card,
   CardContent,
   Chip,
@@ -13,10 +14,18 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
+import ArrowForwardRounded from '@mui/icons-material/ArrowForwardRounded';
 import BadgeOutlinedIcon from '@mui/icons-material/BadgeOutlined';
+import CheckCircleRounded from '@mui/icons-material/CheckCircleRounded';
 import FlightOutlinedIcon from '@mui/icons-material/FlightOutlined';
+import PaidOutlined from '@mui/icons-material/PaidOutlined';
+import { useLocale } from '@/shared/i18n/LocaleProvider';
 import { LoadingButton } from '@/shared/ui/LoadingButton';
-import { type AssignOccurrenceInput, type ServiceRequest } from '../api/contractApi';
+import {
+  type AssignOccurrenceInput,
+  type ServiceRequest,
+  type ServiceRequestOccurrence,
+} from '../api/contractApi';
 import { dateTimeInputToInstant, instantToDateTimeInput } from '../api/scheduleTime';
 import {
   useAssignServiceOccurrence,
@@ -37,16 +46,24 @@ export function OccurrencesPanel({
   onChanged,
   onError,
 }: OccurrencesPanelProps) {
+  const { t } = useLocale();
   return (
-    <Card variant="outlined" sx={{ borderRadius: 3, borderColor: 'divider', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
+    <Card
+      variant="outlined"
+      sx={{
+        borderRadius: '16px',
+        borderColor: 'divider',
+        boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+      }}
+    >
       <CardContent sx={{ p: { xs: 2, sm: 2.5 } }}>
         <Typography variant="h6" sx={{ fontWeight: 700, mb: 1.5 }}>
-          Occurrences and assignment
+          {t('Occurrences and assignment')}
         </Typography>
 
         {request.occurrences.length === 0 ? (
           <Typography color="text.secondary">
-            Occurrences are created after the signed contract is uploaded.
+            {t('Occurrences are created after the signed contract is uploaded.')}
           </Typography>
         ) : (
           <Stack spacing={2}>
@@ -54,14 +71,7 @@ export function OccurrencesPanel({
               <OccurrenceCard
                 key={occurrence.id}
                 request={request}
-                occurrenceId={occurrence.id}
-                occurrenceIndex={occurrence.occurrenceIndex}
-                startAt={occurrence.plannedStartAt}
-                endAt={occurrence.plannedEndAt}
-                status={occurrence.status}
-                inspectorId={occurrence.inspectorId}
-                droneId={occurrence.droneId}
-                inspectionId={occurrence.inspectionId}
+                occurrence={occurrence}
                 manager={manager}
                 onChanged={onChanged}
                 onError={onError}
@@ -76,34 +86,35 @@ export function OccurrencesPanel({
 
 function OccurrenceCard({
   request,
-  occurrenceId,
-  occurrenceIndex,
-  startAt,
-  endAt,
-  status,
-  inspectorId,
-  droneId,
-  inspectionId,
+  occurrence,
   manager,
   onChanged,
   onError,
 }: {
   request: ServiceRequest;
-  occurrenceId: string;
-  occurrenceIndex: number;
-  startAt: string;
-  endAt: string;
-  status: string;
-  inspectorId: string | null;
-  droneId: string | null;
-  inspectionId: string | null;
+  occurrence: ServiceRequestOccurrence;
   manager: boolean;
   onChanged: () => void;
   onError: (message: string) => void;
 }) {
+  const { formatNumber, t } = useLocale();
+  const {
+    id: occurrenceId,
+    occurrenceIndex,
+    plannedStartAt: startAt,
+    plannedEndAt: endAt,
+    status,
+    inspectorId,
+    droneId,
+    inspectionId,
+    totalPrice,
+    paymentStatus,
+    reportAcceptedAt,
+  } = occurrence;
+
   const assign = useAssignServiceOccurrence(request.id, occurrenceId);
-  const inspectors = usePartnerInspectors();
-  const drones = usePartnerDrones();
+  const inspectors = usePartnerInspectors(manager);
+  const drones = usePartnerDrones(manager);
   const [inspector, setInspector] = useState('');
   const [drone, setDrone] = useState('');
   const [customStart, setCustomStart] = useState<string | null>(null);
@@ -115,6 +126,19 @@ function OccurrenceCard({
   const selectedDrone = availableDrones.some((item) => item.id === drone) ? drone : '';
 
   const isAssigned = status === 'ASSIGNED';
+  const assignedInspectorName =
+    (inspectors.data ?? []).find((item) => item.id === inspectorId)?.fullName ??
+    (inspectorId ? `${t('Partner Pilot')} #${inspectorId.slice(0, 8)}` : null);
+  const assignedDroneRecord = (drones.data ?? []).find((item) => item.id === droneId);
+  const assignedDroneLabel = assignedDroneRecord
+    ? `${assignedDroneRecord.model} (${assignedDroneRecord.serialNumber})`
+    : droneId
+      ? `${t('Drone')} #${droneId.slice(0, 8)}`
+      : null;
+
+  const feeVnd = totalPrice != null && totalPrice > 0 ? `${formatNumber(totalPrice)} ₫` : null;
+  const isPaid = paymentStatus === 'PAID';
+  const isPaymentDue = paymentStatus === 'PAYMENT_DUE';
 
   const submit = async () => {
     if (!inspector || !selectedDrone) {
@@ -147,62 +171,129 @@ function OccurrenceCard({
       variant="outlined"
       sx={{
         p: 2,
-        borderRadius: 2,
+        borderRadius: '10px',
         border: '1px solid',
-        borderColor: isAssigned ? 'success.light' : 'divider',
-        bgcolor: isAssigned ? 'success.50' : 'background.paper',
+        borderColor: isAssigned ? 'divider' : 'divider',
+        bgcolor: 'background.paper',
       }}
     >
       <Stack spacing={1.5}>
-        <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
-          <Typography sx={{ fontWeight: 700 }}>
-            Occurrence {occurrenceIndex}
-          </Typography>
-          <Chip
-            size="small"
-            label={status.replaceAll('_', ' ')}
-            color={isAssigned ? 'success' : 'default'}
-            sx={{ fontWeight: 700 }}
-          />
+        <Stack
+          direction="row"
+          sx={{ justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}
+        >
+          <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
+            <Typography sx={{ fontWeight: 700, fontSize: '0.875rem' }}>
+              Occurrence {occurrenceIndex}
+            </Typography>
+            <Chip
+              size="small"
+              label={status.replaceAll('_', ' ')}
+              color={isAssigned ? 'success' : 'default'}
+              sx={{ height: 22, borderRadius: '5px', fontSize: '0.75rem', fontWeight: 700 }}
+            />
+            {isPaid && (
+              <Chip
+                size="small"
+                icon={<CheckCircleRounded sx={{ fontSize: 14 }} />}
+                label={t('Paid')}
+                color="success"
+                variant="outlined"
+                sx={{ height: 22, borderRadius: '5px', fontSize: '0.75rem', fontWeight: 650 }}
+              />
+            )}
+            {isPaymentDue && (
+              <Chip
+                size="small"
+                label={t('Payment Due')}
+                color="warning"
+                sx={{ height: 22, borderRadius: '5px', fontSize: '0.75rem', fontWeight: 650 }}
+              />
+            )}
+          </Stack>
+
+          {feeVnd && (
+            <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
+              <PaidOutlined sx={{ fontSize: 16, color: isPaid ? '#176B52' : 'text.secondary' }} />
+              <Typography
+                variant="body2"
+                sx={{
+                  fontWeight: 700,
+                  color: isPaid ? '#176B52' : 'text.primary',
+                  fontVariantNumeric: 'tabular-nums',
+                }}
+              >
+                {feeVnd}
+              </Typography>
+            </Stack>
+          )}
         </Stack>
 
-        <Typography variant="body2" color="text.secondary">
-          {new Date(startAt).toLocaleString(undefined, { timeZone: request.timezone })} –{' '}
+        <Typography variant="body2" color="text.secondary" sx={{ fontVariantNumeric: 'tabular-nums' }}>
+          {new Date(startAt).toLocaleString(undefined, { timeZone: request.timezone })} -{' '}
           {new Date(endAt).toLocaleString(undefined, { timeZone: request.timezone })} · {request.timezone}
         </Typography>
 
         {isAssigned ? (
-          <Box sx={{ pt: 0.5 }}>
+          <Stack
+            direction={{ xs: 'column', sm: 'row' }}
+            spacing={1.5}
+            sx={{ justifyContent: 'space-between', alignItems: { sm: 'center' }, pt: 0.5 }}
+          >
             <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', gap: 0.5 }}>
-              <Chip
-                icon={<BadgeOutlinedIcon />}
-                label={`Inspector: ${inspectorId}`}
-                variant="outlined"
-                size="small"
-              />
-              <Chip
-                icon={<FlightOutlinedIcon />}
-                label={`Drone: ${droneId}`}
-                variant="outlined"
-                size="small"
-              />
-              {inspectionId && (
+              {assignedInspectorName && (
                 <Chip
-                  label={`Inspection ${inspectionId}`}
+                  icon={<BadgeOutlinedIcon />}
+                  label={assignedInspectorName}
+                  variant="outlined"
+                  size="small"
+                />
+              )}
+              {assignedDroneLabel && (
+                <Chip
+                  icon={<FlightOutlinedIcon />}
+                  label={assignedDroneLabel}
+                  variant="outlined"
+                  size="small"
+                />
+              )}
+              {reportAcceptedAt && (
+                <Chip
+                  label={t('Report accepted')}
                   color="success"
                   variant="outlined"
                   size="small"
                 />
               )}
             </Stack>
-            <Typography variant="caption" sx={{ display: 'block', mt: 0.75, color: 'text.secondary' }}>
-              Inspector {inspectorId} · Drone {droneId} · Inspection {inspectionId} · MF2 ends at assignment; field work is in MF3.
-            </Typography>
-          </Box>
+
+            {inspectionId && (
+              <Button
+                component="a"
+                href={
+                  manager
+                    ? `/admin/inspections/${inspectionId}/review`
+                    : `/client/inspections/${inspectionId}/${reportAcceptedAt || isPaid ? 'report' : 'tracking'}`
+                }
+                size="small"
+                variant="outlined"
+                endIcon={<ArrowForwardRounded sx={{ fontSize: 14 }} />}
+                sx={{
+                  borderRadius: '8px',
+                  fontSize: '0.75rem',
+                  fontWeight: 600,
+                  textTransform: 'none',
+                  alignSelf: { xs: 'flex-start', sm: 'center' },
+                }}
+              >
+                {manager ? t('Open review') : t('Open inspection')}
+              </Button>
+            )}
+          </Stack>
         ) : (
           manager &&
           request.status === 'CONTRACT_SIGNED' && (
-            <Box sx={{ mt: 1, p: 2, bgcolor: 'action.hover', borderRadius: 2 }}>
+            <Box sx={{ mt: 1, p: 2, bgcolor: 'action.hover', borderRadius: '10px' }}>
               <Stack spacing={1.5}>
                 <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5}>
                   <TextField
@@ -269,7 +360,7 @@ function OccurrenceCard({
                     loading={assign.isPending}
                     variant="contained"
                     onClick={() => void submit()}
-                    sx={{ borderRadius: 2, fontWeight: 700 }}
+                    sx={{ borderRadius: '8px', fontWeight: 700 }}
                   >
                     Assign occurrence
                   </LoadingButton>

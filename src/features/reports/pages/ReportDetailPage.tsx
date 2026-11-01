@@ -15,8 +15,6 @@ import {
   Typography,
 } from '@mui/material';
 import ArrowBackRounded from '@mui/icons-material/ArrowBackRounded';
-import CheckCircleRounded from '@mui/icons-material/CheckCircleRounded';
-import OpenInNewRounded from '@mui/icons-material/OpenInNewRounded';
 import { canPerform } from '@/app/permissions/capability';
 import {
   getSectionPath,
@@ -42,6 +40,8 @@ import {
 } from '@/features/inspections/hooks/useInspections';
 import { ReportAuthoringPanel } from '@/features/reports/components/ReportAuthoringPanel';
 import { ReportAiSummaryCard } from '@/features/reports/components/ReportAiSummaryCard';
+import { CustomerReportSettlementCard } from '@/features/reports/components/CustomerReportSettlementCard';
+import { InspectorPayoutSummaryBar } from '@/features/inspections/components/InspectorPayoutSummaryBar';
 import type { ReportSectionValues } from '@/features/reports/components/ReportSectionForm';
 import { EmptyState } from '@/shared/ui/EmptyState';
 import { getErrorMessage } from '@/shared/api/errorMessage';
@@ -146,25 +146,29 @@ export default function ReportDetailPage() {
     await versions.refetch();
   };
 
+  const isEmbeddedInInspectionWorkspace = location.pathname.includes('/inspections/');
+
   return (
     <Box className="workspace-page workspace-page--reports" sx={{ width: '100%', maxWidth: '1440px', mx: 'auto' }}>
-      {/* Top Navigation */}
-      <Box sx={{ mb: 3, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <Button
-          startIcon={<ArrowBackRounded />}
-          onClick={() => navigate(`${getSectionPath(portal, 'inspections')}?view=reports`)}
-          sx={{
-            color: 'text.secondary',
-            fontWeight: 600,
-            fontSize: '14px',
-            textTransform: 'none',
-            borderRadius: '8px',
-            '&:hover': { bgcolor: 'action.hover' },
-          }}
-        >
-          {canReview && !canAuthor ? 'Back to review queue' : 'Back to reports list'}
-        </Button>
-      </Box>
+      {/* Top Navigation: shown when rendered standalone at /:portal/reports/:id */}
+      {!isEmbeddedInInspectionWorkspace && (
+        <Box sx={{ mb: 3, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <Button
+            startIcon={<ArrowBackRounded />}
+            onClick={() => navigate(`${getSectionPath(portal, 'inspections')}?view=reports`)}
+            sx={{
+              color: 'text.secondary',
+              fontWeight: 600,
+              fontSize: '0.875rem',
+              textTransform: 'none',
+              borderRadius: '8px',
+              '&:hover': { bgcolor: 'action.hover' },
+            }}
+          >
+            {canReview && !canAuthor ? 'Back to review queue' : 'Back to reports list'}
+          </Button>
+        </Box>
+      )}
 
       {/* Header card */}
       <Box sx={{ mb: 3 }}>
@@ -274,7 +278,7 @@ export default function ReportDetailPage() {
               <Alert
                 severity={openVersion.status === 'PUBLISHED' ? 'success' : 'info'}
                 sx={{
-                  borderRadius: '12px',
+                  borderRadius: '10px',
                   fontWeight: 500,
                   fontSize: '0.875rem',
                 }}
@@ -475,103 +479,35 @@ export default function ReportDetailPage() {
 
               {/* Customer Report Acceptance & Payment Gate */}
               {openVersion.status === 'PUBLISHED' && portal === 'client' && (
-                <Paper
-                  variant="outlined"
-                  sx={{
-                    p: 2.5,
-                    borderRadius: '16px',
-                    border: '1px solid',
-                    borderColor: (theme) => (theme.palette.mode === 'dark' ? 'primary.dark' : '#b2ddff'),
-                    bgcolor: (theme) => (theme.palette.mode === 'dark' ? 'rgba(2, 106, 162, 0.12)' : '#f0f9ff'),
-                  }}
-                >
-                  {isPaid ? (
-                    <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-                      <CheckCircleRounded sx={{ color: 'success.main', fontSize: 22 }} />
-                      <Typography variant="subtitle1" sx={{ fontWeight: 700, color: 'success.main' }}>
-                        {t('Thanh toán thành công! Báo cáo chính thức đã được mở khóa để tải về.')}
-                      </Typography>
-                    </Stack>
-                  ) : isReportAccepted ? (
-                    <Stack spacing={1.5}>
-                      <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-                        <CheckCircleRounded sx={{ color: 'success.main', fontSize: 22 }} />
-                        <Typography variant="subtitle1" sx={{ fontWeight: 700, color: 'success.main' }}>
-                          {t('Báo cáo đã được nghiệm thu (Report Accepted)')}
-                        </Typography>
-                      </Stack>
-                      <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                        {t(
-                          'The report has been accepted successfully. Please complete the service payment to unlock and download the official stamped PDF deliverable.',
-                        )}
-                      </Typography>
-                      <Box sx={{ pt: 0.5 }}>
-                        <Button
-                          variant="contained"
-                          disabled={payosLink.isPending}
-                          onClick={() => payosLink.mutate()}
-                          endIcon={<OpenInNewRounded />}
-                          sx={{
-                            textTransform: 'none',
-                            fontWeight: 600,
-                            bgcolor: '#026aa2',
-                            '&:hover': { bgcolor: '#005585' },
-                          }}
-                        >
-                          {payosLink.isPending
-                            ? t('Connecting to PayOS gateway…')
-                            : t('Proceed to VietQR payment via PayOS ↗')}
-                        </Button>
-                      </Box>
-                    </Stack>
-                  ) : (
-                    <Stack spacing={1.5}>
-                      <Typography variant="subtitle1" sx={{ fontWeight: 700, color: 'text.primary' }}>
-                        {t('Nghiệm thu báo cáo (Customer Report Acceptance)')}
-                      </Typography>
-                      <ReportAiSummaryCard inspectionId={inspectionId} versionId={openVersion.id} />
-                      <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                        {t(
-                          'Please review the published inspection report below. When satisfied with the inspection findings, click "Accept Report" to record acceptance and unlock the payment gateway.',
-                        )}
-                      </Typography>
-                      {disputeSubmitted && (
-                        <Alert severity="warning" sx={{ borderRadius: '8px' }}>
-                          {t(
-                            'You have submitted a dispute/clarification request regarding this report. The Platform Manager has been notified and will review your inquiry.',
-                          )}
-                        </Alert>
-                      )}
-                      <Stack direction="row" spacing={1.5} sx={{ pt: 0.5, flexWrap: 'wrap', gap: 1 }}>
-                        <Button
-                          variant="contained"
-                          color="primary"
-                          disabled={acceptReport.isPending}
-                          onClick={() =>
-                            acceptReport.mutate(openVersion.id, {
-                              onSuccess: () => {
-                                void paymentStatusQuery.refetch();
-                              },
-                            })
-                          }
-                          sx={{ textTransform: 'none', fontWeight: 600 }}
-                        >
-                          {acceptReport.isPending
-                            ? t('Accepting…')
-                            : t('Accept Report')}
-                        </Button>
-                        <Button
-                          variant="outlined"
-                          color="warning"
-                          onClick={() => setDisputeOpen(true)}
-                          sx={{ textTransform: 'none', fontWeight: 600 }}
-                        >
-                          {t('File a dispute / Request clarification')}
-                        </Button>
-                      </Stack>
-                    </Stack>
-                  )}
-                </Paper>
+                <CustomerReportSettlementCard
+                  inspectionId={inspectionId}
+                  versionId={openVersion.id}
+                  versionNo={openVersion.versionNo}
+                  isPaid={isPaid}
+                  isReportAccepted={isReportAccepted}
+                  paymentStatus={paymentStatus}
+                  acceptPending={acceptReport.isPending}
+                  payosPending={payosLink.isPending}
+                  disputeSubmitted={disputeSubmitted}
+                  onAcceptReport={() =>
+                    acceptReport.mutate(openVersion.id, {
+                      onSuccess: () => {
+                        void paymentStatusQuery.refetch();
+                      },
+                    })
+                  }
+                  onProceedToPayOS={() => payosLink.mutate()}
+                  onOpenDispute={() => setDisputeOpen(true)}
+                />
+              )}
+
+              {/* Platform Manager / Inspector Revenue, Commission & Auto-Disbursement Summary */}
+              {portal !== 'client' && (
+                <InspectorPayoutSummaryBar
+                  inspectionId={inspectionId}
+                  paymentDetails={paymentStatus}
+                  roleView={portal === 'admin' ? 'manager' : 'inspector'}
+                />
               )}
 
               {canReview && publishedUnhanded && !isReinspection && (

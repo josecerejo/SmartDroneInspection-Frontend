@@ -13,10 +13,11 @@ import {
   type ServiceRequest,
 } from '../api/contractApi';
 
-export function useServiceRequests() {
+export function useServiceRequests(enabled = true) {
   return useQuery({
     queryKey: contractQueryKeys.requests(),
     queryFn: contractApi.listRequests,
+    enabled,
   });
 }
 

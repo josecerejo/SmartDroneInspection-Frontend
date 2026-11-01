@@ -104,7 +104,7 @@ export function AssetsPage() {
       label: t('Code'),
       width: 160,
       render: (asset) => (
-        <Typography sx={{ fontFamily: 'monospace', fontWeight: 600, fontSize: '0.8125rem', color: 'text.primary' }}>
+        <Typography sx={{ fontFamily: 'monospace', fontWeight: 600, fontSize: '0.75rem', color: 'text.primary' }}>
           {asset.code}
         </Typography>
       ),
@@ -574,7 +574,7 @@ function CreateAssetDialogForm({
               <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'text.primary' }}>
                 {t('Inspection Items / Checkpoints')}
               </Typography>
-              <Chip label={t('Checklist')} size="small" color="primary" variant="outlined" sx={{ height: 20, fontSize: '0.72rem', fontWeight: 600 }} />
+              <Chip label={t('Checklist')} size="small" color="primary" variant="outlined" sx={{ height: 20, fontSize: '0.75rem', fontWeight: 600 }} />
             </Stack>
             <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1.5 }}>
               {t('Define specific structural components, bridge piers, or equipment checkpoints that the drone inspector must examine and confirm during field inspection.')}
@@ -695,7 +695,7 @@ function AssetRecurringSchedulesSection({
               label={t('Active schedule running')}
               color="success"
               variant="outlined"
-              sx={{ fontSize: '11px', height: 22, fontWeight: 600 }}
+              sx={{ fontSize: '0.75rem', height: 22, fontWeight: 600 }}
             />
           ) : (
             <Button
@@ -703,7 +703,7 @@ function AssetRecurringSchedulesSection({
               variant="text"
               startIcon={<Add sx={{ fontSize: 14 }} />}
               onClick={() => onNewRecurringSchedule?.(assetId)}
-              sx={{ textTransform: 'none', fontSize: '12px', fontWeight: 600 }}
+              sx={{ textTransform: 'none', fontSize: '0.75rem', fontWeight: 600 }}
             >
               {t('Add schedule')}
             </Button>
@@ -744,7 +744,7 @@ function AssetRecurringSchedulesSection({
                   size="small"
                   sx={{
                     height: 20,
-                    fontSize: '0.6875rem',
+                    fontSize: '0.75rem',
                     fontWeight: 700,
                     bgcolor:
                       schedule.status === 'ACTIVE'
@@ -766,7 +766,7 @@ function AssetRecurringSchedulesSection({
         </Stack>
       ) : (
         <Box sx={{ py: 1, textAlign: 'center' }}>
-          <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8125rem' }}>
+          <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.875rem' }}>
             {t('No recurring schedule configured for this asset yet.')}
           </Typography>
           {isClient && (
@@ -775,7 +775,7 @@ function AssetRecurringSchedulesSection({
               variant="outlined"
               startIcon={<EventRepeatIcon sx={{ fontSize: 14 }} />}
               onClick={() => onNewRecurringSchedule?.(assetId)}
-              sx={{ mt: 1, textTransform: 'none', fontSize: '11px', borderRadius: '6px' }}
+              sx={{ mt: 1, textTransform: 'none', fontSize: '0.75rem', borderRadius: '8px' }}
             >
               {t('Set up recurring schedule')}
             </Button>
@@ -812,7 +812,7 @@ function AssetInspectionHistorySection({
         <Chip
           size="small"
           label={`${assetInspections.length} ${t('missions')}`}
-          sx={{ height: 20, fontSize: '0.6875rem', fontWeight: 600 }}
+          sx={{ height: 20, fontSize: '0.75rem', fontWeight: 600 }}
         />
       </Stack>
 
@@ -850,7 +850,7 @@ function AssetInspectionHistorySection({
         </Stack>
       ) : (
         <Box sx={{ py: 1, textAlign: 'center' }}>
-          <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8125rem' }}>
+          <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.875rem' }}>
             {t('No inspection history recorded for this asset yet.')}
           </Typography>
         </Box>
@@ -971,7 +971,7 @@ function AssetDetailDrawer({
         </Typography>
         <Box sx={{ my: 1 }}>{asset && <StatusChip status={asset.status} />}</Box>
         {asset?.status === 'RETIRED' && (
-          <Alert severity="info" sx={{ my: 1.5, borderRadius: 1.5, fontSize: '0.8125rem' }}>
+          <Alert severity="info" sx={{ my: 1.5, borderRadius: 1.5, fontSize: '0.875rem' }}>
             {t(
               'This asset has been completed and archived. Inspection history and documents remain available for audit and reference.',
             )}
@@ -1026,12 +1026,12 @@ function AssetDetailDrawer({
               onClick={() => setConfirmRetireOpen(true)}
               sx={{
                 mb: 1.5,
-                fontSize: '12px',
+                fontSize: '0.75rem',
                 fontWeight: 600,
                 textTransform: 'none',
-                borderColor: '#fca5a5',
-                color: '#dc2626',
-                '&:hover': { bgcolor: '#fef2f2', borderColor: '#ef4444' },
+                borderColor: 'error.light',
+                color: 'error.main',
+                '&:hover': { bgcolor: 'action.hover', borderColor: 'error.main' },
               }}
             >
               {t('Complete & Archive Asset')}
@@ -1187,7 +1187,7 @@ function AssetDetailDrawer({
           {t('Complete & Archive Contract')}
         </DialogTitle>
         <DialogContent>
-          <Typography variant="body2" sx={{ color: '#475569', mt: 1 }}>
+          <Typography variant="body2" sx={{ color: 'text.secondary', mt: 1 }}>
             {t(
               'Are you sure you want to complete work and archive this asset? The asset will be set to RETIRED. All historical inspections, reports, and evidence will remain safely preserved in the history section.',
             )}

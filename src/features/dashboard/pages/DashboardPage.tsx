@@ -20,6 +20,8 @@ import { LyticRadialGaugeCard } from '../components/LyticRadialGaugeCard';
 import { LyticStackedBarChart } from '../components/LyticStackedBarChart';
 import { LyticQueueTable } from '../components/LyticQueueTable';
 import { DashboardHeaderActions } from '../components/LyticHeaderActions';
+import { CustomerDashboardPage } from './CustomerDashboardPage';
+import { InspectorDashboardPage } from './InspectorDashboardPage';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 import { formatLocation } from '@/shared/airspace/airspaceZones';
 
@@ -67,12 +69,32 @@ function getAreas(roles: readonly string[], portal: string): FocusArea[] {
 }
 
 export default function DashboardPage() {
+  const roles = useAuthStore((state) => state.roles);
+  const location = useLocation();
+  const portal = location.pathname.split('/').filter(Boolean)[0] ?? '';
+
+  if (portal === 'client' && roles.includes('CUSTOMER')) {
+    return <CustomerDashboardPage />;
+  }
+
+  if (
+    portal === 'operations' &&
+    roles.includes('INSPECTOR') &&
+    !roles.includes('MAINTENANCE_ENGINEER')
+  ) {
+    return <InspectorDashboardPage />;
+  }
+
+  return <OperationsAndPlatformDashboard />;
+}
+
+function OperationsAndPlatformDashboard() {
   const { formatNumber, t } = useLocale();
   const roles = useAuthStore((state) => state.roles);
   const location = useLocation();
   const portal = location.pathname.split('/').filter(Boolean)[0] ?? '';
 
-  const isOrganization = portal === 'client' && roles.includes('CUSTOMER');
+  const isOrganization = false;
   const isAdmin = portal === 'admin' && (roles.includes('ADMIN') || roles.includes('MANAGER'));
   const isInspector = portal === 'operations' && roles.includes('INSPECTOR');
   const isMaintenanceEngineer = portal === 'operations' && roles.includes('MAINTENANCE_ENGINEER');
@@ -476,7 +498,7 @@ export default function DashboardPage() {
                 bgcolor: 'background.paper',
                 border: '1px solid',
                 borderColor: 'divider',
-                borderRadius: '12px',
+                borderRadius: '10px',
                 p: 2.5,
                 boxShadow: 'none',
               }}
@@ -484,7 +506,7 @@ export default function DashboardPage() {
               <Typography
                 sx={{
                   color: 'text.primary',
-                  fontSize: '15px',
+                  fontSize: '1rem',
                   fontWeight: 600,
                   mb: 1.5,
                 }}
@@ -524,7 +546,7 @@ export default function DashboardPage() {
                         sx={{
                           width: 32,
                           height: 32,
-                          borderRadius: '6px',
+                          borderRadius: '8px',
                           bgcolor: 'primary.light',
                           color: 'primary.main',
                           display: 'grid',
@@ -537,10 +559,10 @@ export default function DashboardPage() {
                     endIcon={<ArrowForwardRounded sx={{ color: 'text.secondary', fontSize: 16, ml: 'auto' }} />}
                   >
                     <Box sx={{ minWidth: 0, flex: 1, ml: 0.5 }}>
-                      <Typography sx={{ fontSize: '13px', fontWeight: 600, lineHeight: 1.2, color: 'text.primary' }}>
+                      <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, lineHeight: 1.2, color: 'text.primary' }}>
                         {t(label)}
                       </Typography>
-                      <Typography sx={{ fontSize: '11px', color: 'text.secondary', lineHeight: 1.2, mt: 0.25 }}>
+                      <Typography sx={{ fontSize: '0.75rem', color: 'text.secondary', lineHeight: 1.2, mt: 0.25 }}>
                         {t(description)}
                       </Typography>
                     </Box>

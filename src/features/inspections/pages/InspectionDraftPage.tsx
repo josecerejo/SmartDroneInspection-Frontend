@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { Link as RouterLink, useParams } from 'react-router-dom';
 import {
@@ -105,8 +105,6 @@ export default function InspectionDraftPage() {
   const canEditOpenVersion = Boolean(
     isInspector && isAuthor && !sourcesChangedAfterVersion && openVersion?.status === 'RETURNED',
   );
-  const isPublished = openVersion?.status === 'PUBLISHED' || inspectionStatus === 'COMPLETED';
-  const isLockedInReview = openVersion?.status === 'SUBMITTED' || inspectionStatus === 'UNDER_REVIEW';
 
   const handleSaveSections = async (_sections: ReportSectionValues) => {
     // Report sections are derived automatically from confirmed records.

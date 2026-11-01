@@ -110,7 +110,7 @@ export default function MaintenancePage() {
             <Chip
               size="small"
               label={order.priority}
-              sx={{ height: 20, fontSize: 10, fontWeight: 700 }}
+              sx={{ height: 20, fontSize: '0.75rem', fontWeight: 700 }}
             />
           ) : null}
         </Stack>
@@ -121,7 +121,7 @@ export default function MaintenancePage() {
       label: t('Due'),
       width: 130,
       render: (order) => (
-        <Typography sx={{ color: '#475467', fontSize: '0.8125rem' }}>
+        <Typography sx={{ color: '#475467', fontSize: '0.875rem', fontVariantNumeric: 'tabular-nums' }}>
           {order.dueAt ? formatDate(new Date(order.dueAt)) : '—'}
         </Typography>
       ),

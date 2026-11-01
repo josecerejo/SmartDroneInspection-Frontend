@@ -40,8 +40,8 @@ export function RequestQuotePanel({
   const latest = request.quotes[0];
   const accept = useAcceptServiceQuote(request.id);
   const issue = useIssueServiceQuote(request.id);
-  const inspectors = usePartnerInspectors();
-  const drones = usePartnerDrones();
+  const inspectors = usePartnerInspectors(manager);
+  const drones = usePartnerDrones(manager);
 
   const [scope, setScope] = useState(request.description);
   const [start, setStart] = useState(`${request.requestedFrom}T08:00`);

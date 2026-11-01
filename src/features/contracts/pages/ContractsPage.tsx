@@ -20,6 +20,7 @@ import SearchRoundedIcon from '@mui/icons-material/SearchRounded';
 import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
 import { useAuthStore } from '@/features/auth/store/authStore';
 import { LoadingButton } from '@/shared/ui/LoadingButton';
+import { useLocale } from '@/shared/i18n/LocaleProvider';
 import { useAssets } from '@/features/assets/hooks/useAssets';
 import {
   type CreateServiceRequestInput,
@@ -48,6 +49,7 @@ function errorText(error: unknown): string {
 }
 
 export default function ContractsPage() {
+  const { t } = useLocale();
   const roles = useAuthStore((state) => state.roles);
   const isCustomer = roles.includes('CUSTOMER');
   const isManager = roles.includes('MANAGER');
@@ -92,10 +94,12 @@ export default function ContractsPage() {
       {/* Header */}
       <Box>
         <Typography variant="h4" sx={{ fontWeight: 800, color: 'text.primary' }}>
-          Inspection service requests
+          {t('Inspection service requests')}
         </Typography>
-        <Typography color="text.secondary" sx={{ mt: 0.5, fontSize: '0.95rem' }}>
-          Đàm phán yêu cầu dịch vụ, thỏa thuận điều khoản thương mại, lưu trữ bản scan hợp đồng và phân công lịch bay.
+        <Typography color="text.secondary" sx={{ mt: 0.5, fontSize: '0.875rem' }}>
+          {t(
+            'Request drone surveys, negotiate commercial terms, store signed contract scans, and track assigned occurrences.',
+          )}
         </Typography>
       </Box>
 
@@ -110,7 +114,7 @@ export default function ContractsPage() {
           sx={{
             width: { xs: '100%', md: 330 },
             flexShrink: 0,
-            borderRadius: 3,
+            borderRadius: '16px',
             borderColor: 'divider',
             boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
           }}
@@ -118,13 +122,13 @@ export default function ContractsPage() {
           <CardContent sx={{ p: 2 }}>
             <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
               <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                Requests
+                {t('Requests')}
               </Typography>
               <Chip
-                label={`${requestItems.length} yêu cầu`}
+                label={`${requestItems.length} ${t('requests')}`}
                 size="small"
                 variant="outlined"
-                sx={{ fontWeight: 600 }}
+                sx={{ fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}
               />
             </Stack>
 
@@ -132,16 +136,16 @@ export default function ContractsPage() {
             {isCustomer && assets.isPending ? <CircularProgress size={22} aria-label="Loading assets" /> : null}
             {isCustomer && !assets.isPending && (assets.data?.items?.length ?? 0) === 0 ? (
               <Typography color="text.secondary" variant="body2" sx={{ mb: 1.5 }}>
-                Add an active asset before submitting an inspection request.
+                {t('Add an active asset before submitting an inspection request.')}
               </Typography>
             ) : null}
             {isCustomer && !assets.isPending && (assets.data?.items?.length ?? 0) > 0 && (
               <Paper
                 variant="outlined"
-                sx={{ p: 2, mb: 2, borderRadius: 2, bgcolor: 'action.hover', borderColor: 'divider' }}
+                sx={{ p: 2, mb: 2, borderRadius: '10px', bgcolor: 'action.hover', borderColor: 'divider' }}
               >
                 <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.25, color: 'primary.main' }}>
-                  Tạo yêu cầu kiểm định mới
+                  {t('New inspection request')}
                 </Typography>
                 <CreateRequestForm
                   assets={assets.data?.items ?? []}
@@ -155,7 +159,7 @@ export default function ContractsPage() {
             <TextField
               size="small"
               fullWidth
-              placeholder="Tìm kiếm yêu cầu..."
+              placeholder={t('Search requests…')}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               slotProps={{
@@ -165,7 +169,7 @@ export default function ContractsPage() {
                       <SearchRoundedIcon fontSize="small" sx={{ color: 'text.secondary' }} />
                     </InputAdornment>
                   ),
-                  sx: { borderRadius: 2, fontSize: '0.875rem' },
+                  sx: { borderRadius: '8px', fontSize: '0.875rem' },
                 },
               }}
               sx={{ mb: 1.5 }}
@@ -174,7 +178,7 @@ export default function ContractsPage() {
             {/* Request List */}
             {filteredRequests.length === 0 ? (
               <Typography color="text.secondary" variant="body2" sx={{ py: 3, textAlign: 'center' }}>
-                {search ? 'Không tìm thấy yêu cầu phù hợp.' : 'No requests yet.'}
+                {search ? t('No matching requests found.') : t('No requests yet.')}
               </Typography>
             ) : (
               <Stack spacing={1.25} sx={{ maxHeight: 600, overflowY: 'auto', pr: 0.5 }}>
@@ -190,13 +194,13 @@ export default function ContractsPage() {
                       sx={{
                         p: 1.5,
                         cursor: 'pointer',
-                        borderRadius: 2,
+                        borderRadius: '10px',
                         transition: 'all 0.15s ease',
                         border: '1.5px solid',
                         borderColor: isSelected ? 'primary.main' : 'divider',
-                        bgcolor: isSelected ? 'primary.50' : 'background.paper',
+                        bgcolor: isSelected ? 'action.selected' : 'background.paper',
                         '&:hover': {
-                          bgcolor: isSelected ? 'primary.50' : 'action.hover',
+                          bgcolor: isSelected ? 'action.selected' : 'action.hover',
                           borderColor: isSelected ? 'primary.main' : 'primary.light',
                         },
                       }}
@@ -206,8 +210,8 @@ export default function ContractsPage() {
                           <Typography
                             variant="body2"
                             sx={{
-                              fontWeight: isSelected ? 750 : 600,
-                              color: isSelected ? 'primary.dark' : 'text.primary',
+                              fontWeight: isSelected ? 700 : 600,
+                              color: isSelected ? 'primary.main' : 'text.primary',
                               lineHeight: 1.3,
                             }}
                           >
@@ -218,19 +222,19 @@ export default function ContractsPage() {
                             size="small"
                             color={isAssigned ? 'success' : isSelected ? 'primary' : 'default'}
                             variant={isSelected ? 'filled' : 'outlined'}
-                            sx={{ height: 20, fontSize: '0.68rem', fontWeight: 700, flexShrink: 0 }}
+                            sx={{ height: 20, fontSize: '0.75rem', fontWeight: 700, flexShrink: 0 }}
                           />
                         </Stack>
 
                         <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center' }}>
-                          <Typography variant="caption" color="text.secondary">
-                            {request.requestedFrom} – {request.requestedUntil}
+                          <Typography variant="caption" color="text.secondary" sx={{ fontVariantNumeric: 'tabular-nums' }}>
+                            {request.requestedFrom} - {request.requestedUntil}
                           </Typography>
                           <Chip
-                            label={request.requestType === 'ONE_TIME' ? 'Một lần' : 'Định kỳ'}
+                            label={request.requestType === 'ONE_TIME' ? t('One time') : t('Recurring')}
                             size="small"
                             variant="outlined"
-                            sx={{ height: 18, fontSize: '0.65rem' }}
+                            sx={{ height: 20, fontSize: '0.75rem' }}
                           />
                         </Stack>
                       </Stack>

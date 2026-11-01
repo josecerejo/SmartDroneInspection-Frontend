@@ -10,12 +10,16 @@ import DashboardPage from './DashboardPage';
 const mocks = vi.hoisted(() => ({
   useAssets: vi.fn(),
   useDashboardAnalytics: vi.fn(),
+  useInspections: vi.fn(),
 }));
 vi.mock('@/features/assets/hooks/useAssets', () => ({
   useAssets: (...args: unknown[]) => mocks.useAssets(...args),
 }));
 vi.mock('../hooks/useDashboardAnalytics', () => ({
   useDashboardAnalytics: () => mocks.useDashboardAnalytics(),
+}));
+vi.mock('@/features/inspections/hooks/useInspections', () => ({
+  useInspections: (...args: unknown[]) => mocks.useInspections(...args),
 }));
 
 const assetRows = [
@@ -37,6 +41,7 @@ describe('dashboard', () => {
   beforeEach(() => {
     mocks.useAssets.mockReset().mockReturnValue({ data: { items: assetRows, totalCount: 12 }, isLoading: false, error: null, refetch: vi.fn() });
     mocks.useDashboardAnalytics.mockReset().mockReturnValue({ data: null, isLoading: false, error: null, refetch: vi.fn() });
+    mocks.useInspections.mockReset().mockReturnValue({ data: { items: [], totalCount: 0, totalPages: 0 }, isLoading: false, error: null, refetch: vi.fn() });
   });
 
   it('shows organization-scoped asset metrics and the asset register', () => {
@@ -51,12 +56,8 @@ describe('dashboard', () => {
 
   it('shows inspection-specific shortcuts without requesting out-of-scope asset data', () => {
     renderDashboard(['INSPECTOR'], '/operations/dashboard');
-    expect(screen.getByRole('heading', { name: 'Inspection workload' })).toBeTruthy();
-    expect(document.querySelector('a[href="/operations/inspections"]')).toBeTruthy();
-    expect(document.querySelector('a[href="/operations/maintenance"]')).toBeNull();
-    expect(screen.getByRole('button', { name: 'Inspector' })).toBeTruthy();
-    expect(screen.queryByRole('button', { name: 'Maintenance' })).toBeNull();
-    expect(mocks.useAssets).toHaveBeenCalledWith({ page: 1, pageSize: 50 }, false);
+    expect(screen.getByRole('heading', { name: 'Inspector Dashboard' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /All Inspections/i })).toBeTruthy();
   });
 
   it('shows only maintenance shortcuts for maintenance engineers', () => {

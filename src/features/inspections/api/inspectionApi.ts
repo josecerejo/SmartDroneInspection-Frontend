@@ -212,6 +212,17 @@ export interface ReportPaymentStatusDetails {
   orderCode: number | null;
   amount: number | null;
   checkoutUrl: string | null;
+  serviceBaseAmount?: number | null;
+  vatRate?: number | null;
+  vatAmount?: number | null;
+  commissionRate?: number | null;
+  commissionAmount?: number | null;
+  inspectorGrossPayout?: number | null;
+  tncnRate?: number | null;
+  tncnAmount?: number | null;
+  inspectorNetPayout?: number | null;
+  payoutStatus?: 'PENDING' | 'ELIGIBLE' | 'PAID' | string | null;
+  payoutReference?: string | null;
 }
 
 export interface ManualDraftInput {}
@@ -256,6 +267,16 @@ export interface InspectionListItem {
   reportVersionNo: number | null;
   inspectionType?: 'INITIAL' | 'RE_INSPECTION';
   workOrderId?: string | null;
+  assetName?: string | null;
+  assetCode?: string | null;
+  assetLocation?: string | null;
+  reportAccepted?: boolean | null;
+  paymentStatus?: 'PENDING' | 'PAYMENT_DUE' | 'PAID' | 'NOT_APPLICABLE' | string | null;
+  paymentAmount?: number | null;
+  commissionRate?: number | null;
+  commissionAmount?: number | null;
+  inspectorNetPayout?: number | null;
+  payoutStatus?: 'PENDING' | 'ELIGIBLE' | 'PAID' | string | null;
   /**
    * The one decision the organization manageristrator is being asked for on this row.
    *
