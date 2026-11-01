@@ -25,6 +25,7 @@ export interface AuthUser {
   roles: Role[];
   actorZone: ActorZone;
   organizationId: string | null;
+  avatarUrl?: string | null | undefined;
   visionFallbackEnabled?: boolean;
   pilotLicenseNumber?: string | undefined;
   pilotLicenseClass?: string | undefined;

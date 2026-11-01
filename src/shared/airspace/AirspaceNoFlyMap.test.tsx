@@ -287,4 +287,44 @@ describe('airspaceZones & AirspaceNoFlyMap', () => {
     expect(formatLocation(null)).toBe('—');
     expect(formatLocation('')).toBe('—');
   });
+
+  it('allows user to toggle custom pilot stand mode and click map to place pilot location', () => {
+    const onSelectPilot = vi.fn();
+    render(
+      <AirspaceNoFlyMap
+        assetName="Cầu Ba Son"
+        latitude={10.7805}
+        longitude={106.7108}
+        onSelectPilotLocation={onSelectPilot}
+      />,
+    );
+
+    const pickBtn = screen.getByRole('button', { name: /Tự chọn nơi đứng bay/i });
+    fireEvent.click(pickBtn);
+
+    expect(screen.getByText(/Chế độ tự chọn nơi đứng bay/i)).toBeTruthy();
+
+    const mapSurface = screen.getByTestId('airspace-map-surface');
+    fireEvent.click(mapSurface, { clientX: 300, clientY: 180 });
+
+    expect(onSelectPilot).toHaveBeenCalledTimes(1);
+    expect(screen.getByText(/Nơi đứng bay \(Tự chọn\)/i)).toBeTruthy();
+  });
+
+  it('renders inspection items and defect locations as checkpoints on map', () => {
+    render(
+      <AirspaceNoFlyMap
+        assetName="Cầu Ba Son"
+        latitude={10.7805}
+        longitude={106.7108}
+        inspectionItems={['Mố cầu M1', 'Trụ cầu P1', 'Dầm chính nhịp giữa', 'Vết nứt bề mặt K1']}
+      />,
+    );
+
+    expect(screen.getByText(/Vị trí cấu kiện cần kiểm tra & Điểm sửa chữa \(4 điểm\)/i)).toBeTruthy();
+    expect(screen.getByText('Mố cầu M1')).toBeTruthy();
+    expect(screen.getByText('Trụ cầu P1')).toBeTruthy();
+    expect(screen.getByText('Dầm chính nhịp giữa')).toBeTruthy();
+    expect(screen.getByText('Vết nứt bề mặt K1')).toBeTruthy();
+  });
 });

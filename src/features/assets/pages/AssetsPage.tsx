@@ -32,6 +32,8 @@ import DownloadOutlined from '@mui/icons-material/DownloadOutlined';
 import EventRepeatIcon from '@mui/icons-material/EventRepeat';
 import PlaceRounded from '@mui/icons-material/PlaceRounded';
 import GppBadRounded from '@mui/icons-material/GppBadRounded';
+import MapRounded from '@mui/icons-material/MapRounded';
+import MyLocationRounded from '@mui/icons-material/MyLocationRounded';
 import { useIsDarkMode } from '@/app/layouts/ColorModeContext';
 import { evaluateAirspace } from '@/shared/airspace/airspaceZones';
 import { useAuthStore } from '@/features/auth/store/authStore';
@@ -57,6 +59,7 @@ import HistoryRoundedIcon from '@mui/icons-material/HistoryRounded';
 import { DroneInventoryPanel } from './DroneInventoryPanel';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 import { AirspaceNoFlyMap } from '@/shared/airspace/AirspaceNoFlyMap';
+import { AirspaceFlightPlannerDialog } from '@/shared/airspace/AirspaceFlightPlannerDialog';
 
 const DOCUMENT_TYPES = ['OWNERSHIP', 'INSPECTION_HISTORY', 'MAINTENANCE_RECORD', 'OTHER'];
 
@@ -92,6 +95,7 @@ export function AssetsPage() {
   const [recurringAssetId, setRecurringAssetId] = useState<string | null>(null);
   const [selectedScheduleId, setSelectedScheduleId] = useState<string | null>(null);
   const [selectedInspectionId, setSelectedInspectionId] = useState<string | null>(null);
+  const [surveyMapAsset, setSurveyMapAsset] = useState<Asset | null>(null);
 
   const items = data?.items ?? [];
   const totalCount = data?.totalCount ?? items.length;
@@ -140,6 +144,26 @@ export function AssetsPage() {
       align: 'right',
       render: (asset) => (
         <Stack direction="row" spacing={1} sx={{ justifyContent: 'flex-end' }}>
+          <Button
+            size="small"
+            variant="outlined"
+            startIcon={<MapRounded sx={{ fontSize: 14 }} />}
+            onClick={(event) => {
+              event.stopPropagation();
+              setSurveyMapAsset(asset);
+            }}
+            sx={{
+              borderRadius: '8px',
+              borderColor: 'divider',
+              color: 'text.primary',
+              fontSize: '12px',
+              fontWeight: 600,
+              textTransform: 'none',
+              '&:hover': { borderColor: 'primary.main', bgcolor: 'action.hover' },
+            }}
+          >
+            {t('Bản đồ bay')}
+          </Button>
           {isClient && asset.status === 'ACTIVE' && (
             <>
               <Button
@@ -359,6 +383,15 @@ export function AssetsPage() {
         inspectionId={selectedInspectionId}
         onClose={() => setSelectedInspectionId(null)}
       />
+      <AirspaceFlightPlannerDialog
+        open={Boolean(surveyMapAsset)}
+        onClose={() => setSurveyMapAsset(null)}
+        assetName={surveyMapAsset?.name || ''}
+        locationText={surveyMapAsset?.locationText}
+        latitude={surveyMapAsset?.latitude}
+        longitude={surveyMapAsset?.longitude}
+        inspectionItems={surveyMapAsset?.inspectionItems}
+      />
       </>}
       {isClient && resourceTab === 1 && <DroneInventoryPanel />}
     </Box>
@@ -400,6 +433,40 @@ function CreateAssetDialogForm({
   const [longitudeText, setLongitudeText] = useState('106.7082');
   const [description, setDescription] = useState('');
   const [inspectionItemsText, setInspectionItemsText] = useState('');
+  const [flightPlannerOpen, setFlightPlannerOpen] = useState(false);
+  const [gpsLoading, setGpsLoading] = useState(false);
+  const [gpsFeedback, setGpsFeedback] = useState<string | null>(null);
+
+  const handleGetCurrentGpsLocation = () => {
+    setGpsFeedback(null);
+    if (typeof navigator === 'undefined' || !navigator.geolocation) {
+      setGpsFeedback(t('Trình duyệt không hỗ trợ định vị GPS.'));
+      return;
+    }
+    setGpsLoading(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setGpsLoading(false);
+        const lat = Number(pos.coords.latitude.toFixed(6));
+        const lon = Number(pos.coords.longitude.toFixed(6));
+        setLatitudeText(String(lat));
+        setLongitudeText(String(lon));
+        setGpsFeedback(`✓ ${t('Đã lấy tọa độ GPS thiết bị của bạn:')} ${lat}°N, ${lon}°E`);
+        if (!locationText || locationText === 'Chưa cập nhật địa chỉ' || locationText === 'Công trình mới') {
+          setLocationText(`Vị trí GPS (${lat.toFixed(4)}, ${lon.toFixed(4)})`);
+        }
+      },
+      () => {
+        setGpsLoading(false);
+        setGpsFeedback(
+          t(
+            'Không lấy được GPS (chưa cấp quyền vị trí). Bạn có thể nhấp chuột trực tiếp lên bản đồ bên dưới để điều chỉnh tọa độ công trình.',
+          ),
+        );
+      },
+      { enableHighAccuracy: true, timeout: 8000 },
+    );
+  };
 
   const activeCategories = categories.filter((category) => category.active);
   const parsedLat = latitudeText.trim() !== '' && !Number.isNaN(Number(latitudeText)) ? Number(latitudeText) : null;
@@ -488,12 +555,74 @@ function CreateAssetDialogForm({
               borderColor: isNoFlyZone ? 'error.main' : 'divider',
             }}
           >
-            <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mb: 1.25 }}>
-              <PlaceRounded sx={{ fontSize: 18, color: isNoFlyZone ? 'error.main' : 'primary.main' }} />
-              <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'text.primary' }}>
-                {t('Asset Coordinates')}
-              </Typography>
+            <Stack direction="row" spacing={1} sx={{ alignItems: 'center', justifyContent: 'space-between', mb: 1.25, flexWrap: 'wrap', gap: 1 }}>
+              <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+                <PlaceRounded sx={{ fontSize: 18, color: isNoFlyZone ? 'error.main' : 'primary.main' }} />
+                <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'text.primary' }}>
+                  {t('Asset Coordinates')}
+                </Typography>
+              </Stack>
+              <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap', gap: 0.75 }}>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  startIcon={
+                    gpsLoading ? (
+                      <CircularProgress size={14} />
+                    ) : (
+                      <MyLocationRounded sx={{ fontSize: 15 }} />
+                    )
+                  }
+                  onClick={handleGetCurrentGpsLocation}
+                  disabled={gpsLoading}
+                  sx={{
+                    textTransform: 'none',
+                    fontWeight: 600,
+                    fontSize: '0.78rem',
+                    borderRadius: '8px',
+                    borderColor: '#0284c7',
+                    color: '#0284c7',
+                    bgcolor: isDark ? 'rgba(2, 132, 199, 0.15)' : '#e0f2fe',
+                    '&:hover': {
+                      borderColor: '#0369a1',
+                      bgcolor: isDark ? 'rgba(2, 132, 199, 0.25)' : '#bae6fd',
+                    },
+                  }}
+                >
+                  {gpsLoading ? t('Đang lấy GPS…') : t('📍 Lấy GPS vị trí của tôi')}
+                </Button>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  startIcon={<MapRounded sx={{ fontSize: 15 }} />}
+                  onClick={() => setFlightPlannerOpen(true)}
+                  sx={{
+                    textTransform: 'none',
+                    fontWeight: 600,
+                    fontSize: '0.78rem',
+                    borderRadius: '8px',
+                    borderColor: 'primary.main',
+                    color: 'primary.main',
+                    bgcolor: isDark ? 'rgba(55, 88, 249, 0.15)' : 'rgba(55, 88, 249, 0.06)',
+                    '&:hover': {
+                      borderColor: 'primary.dark',
+                      bgcolor: isDark ? 'rgba(55, 88, 249, 0.25)' : 'rgba(55, 88, 249, 0.12)',
+                    },
+                  }}
+                >
+                  {t('🗺️ Mở Bản đồ khảo sát')}
+                </Button>
+              </Stack>
             </Stack>
+
+            {gpsFeedback && (
+              <Alert
+                severity={gpsFeedback.startsWith('✓') ? 'success' : 'info'}
+                sx={{ mb: 1.5, py: 0.25, borderRadius: '8px', fontSize: '0.78rem' }}
+              >
+                {gpsFeedback}
+              </Alert>
+            )}
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
               <TextField
                 label={t('Latitude')}
@@ -552,8 +681,33 @@ function CreateAssetDialogForm({
             locationText={locationText}
             latitude={parsedLat}
             longitude={parsedLon}
+            inspectionItems={inspectionItemsText
+              .split(/[\n,]+/)
+              .map((s) => s.trim())
+              .filter(Boolean)}
             compact
             onSelectCoordinates={(lat, lon, placeName) => {
+              setLatitudeText(String(lat));
+              setLongitudeText(String(lon));
+              if (placeName && (!locationText || locationText === 'Công trình mới')) {
+                setLocationText(placeName);
+              }
+            }}
+          />
+
+          <AirspaceFlightPlannerDialog
+            open={flightPlannerOpen}
+            onClose={() => setFlightPlannerOpen(false)}
+            assetName={name || 'Công trình mới'}
+            locationText={locationText}
+            latitude={parsedLat}
+            longitude={parsedLon}
+            inspectionItems={inspectionItemsText
+              .split(/[\n,]+/)
+              .map((s) => s.trim())
+              .filter(Boolean)}
+            canEditCoordinates
+            onApplyCoordinates={(lat, lon, placeName) => {
               setLatitudeText(String(lat));
               setLongitudeText(String(lon));
               if (placeName && (!locationText || locationText === 'Công trình mới')) {
@@ -875,6 +1029,7 @@ function AssetDetailDrawer({
   onSelectInspection?: (inspectionId: string) => void;
 }) {
   const { t } = useLocale();
+  const isDark = useIsDarkMode();
   const roles = useAuthStore((state) => state.roles);
   const isClient = roles.includes('CUSTOMER');
   const retireMutation = useRetireAsset();
@@ -886,6 +1041,7 @@ function AssetDetailDrawer({
   const [file, setFile] = useState<File | null>(null);
   const [downloadError, setDownloadError] = useState<unknown>(null);
   const [downloading, setDownloading] = useState<string | null>(null);
+  const [flightMapOpen, setFlightMapOpen] = useState(false);
   // A blob URL outlives this component unless it is revoked, and a download that resolves after the
   // drawer closed must not write state that no longer has a home.
   const liveObjectUrls = useRef<Set<string>>(new Set());
@@ -1041,14 +1197,47 @@ function AssetDetailDrawer({
         {asset && <InspectionItemsSection items={asset.inspectionItems ?? []} />}
         {asset && (
           <Box sx={{ my: 1.5 }}>
+            <Button
+              variant="outlined"
+              fullWidth
+              startIcon={<MapRounded sx={{ fontSize: 16 }} />}
+              onClick={() => setFlightMapOpen(true)}
+              sx={{
+                mb: 1.25,
+                textTransform: 'none',
+                fontWeight: 600,
+                borderRadius: '8px',
+                borderColor: 'primary.main',
+                color: 'primary.main',
+                bgcolor: isDark ? 'rgba(55, 88, 249, 0.12)' : 'rgba(55, 88, 249, 0.05)',
+                '&:hover': {
+                  borderColor: 'primary.dark',
+                  bgcolor: isDark ? 'rgba(55, 88, 249, 0.22)' : 'rgba(55, 88, 249, 0.1)',
+                },
+              }}
+            >
+              {t('🗺️ Xem Bản đồ khảo sát vùng bay & Điểm cất cánh')}
+            </Button>
             <AirspaceNoFlyMap
               assetName={asset.name}
               locationText={asset.locationText}
               latitude={asset.latitude}
               longitude={asset.longitude}
+              inspectionItems={asset.inspectionItems}
               compact
             />
           </Box>
+        )}
+        {asset && (
+          <AirspaceFlightPlannerDialog
+            open={flightMapOpen}
+            onClose={() => setFlightMapOpen(false)}
+            assetName={asset.name}
+            locationText={asset.locationText}
+            latitude={asset.latitude}
+            longitude={asset.longitude}
+            inspectionItems={asset.inspectionItems}
+          />
         )}
         {asset && (
           <AssetRecurringSchedulesSection

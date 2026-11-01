@@ -36,6 +36,9 @@ export function initializeBrowserSession(): Promise<void> {
         if (flow.step !== 'AUTHENTICATED' || !flow.accessToken) {
           throw new Error('No active browser session was restored.');
         }
+        if (!flow.user) {
+          throw new Error('The restored browser session did not include an account profile.');
+        }
         useAuthStore.getState().setSession({
           accessToken: flow.accessToken,
           user: flow.user,

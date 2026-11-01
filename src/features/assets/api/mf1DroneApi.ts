@@ -30,6 +30,9 @@ export async function uploadDroneEvidence(file: File, type: DroneEvidenceType): 
 
 export interface DroneRegistrationApplication {
   id: string;
+  inspectorUserId?: string | null;
+  inspectorFullName?: string | null;
+  inspectorEmail?: string | null;
   serialNumber: string;
   model: string | null;
   manufacturer: string | null;
@@ -46,6 +49,11 @@ export interface InspectorDrone {
   model: string | null;
   manufacturer: string | null;
   serviceability: string;
+  registrationNumber?: string | null;
+  registrationExpiresAt?: string | null;
+  inspectorOwnerId?: string | null;
+  inspectorFullName?: string | null;
+  inspectorEmail?: string | null;
 }
 
 function unwrap<T>(value: T | { data: T }): T {

@@ -75,7 +75,7 @@ describe('useWorkforce hooks', () => {
       await result.current.mutateAsync({
         email: MEMBER.email,
         fullName: MEMBER.fullName,
-        roles: ['INSPECTOR'],
+        roles: ['MAINTENANCE_ENGINEER'],
       });
     });
 
@@ -102,7 +102,7 @@ describe('useWorkforce hooks', () => {
       mutationData = await result.current.mutateAsync({
         email: MEMBER.email,
         fullName: MEMBER.fullName,
-        roles: ['INSPECTOR'],
+        roles: ['MAINTENANCE_ENGINEER'],
       });
     });
 
@@ -130,7 +130,7 @@ describe('useWorkforce hooks', () => {
       act(async () => result.current.mutateAsync({
         email: MEMBER.email,
         fullName: MEMBER.fullName,
-        roles: ['INSPECTOR'],
+        roles: ['MAINTENANCE_ENGINEER'],
       })),
     ).resolves.toEqual(MEMBER);
     expect(client.getQueryState(workforceKeys.users())?.isInvalidated).toBe(true);
@@ -180,14 +180,14 @@ describe('useWorkforce hooks', () => {
     client.setQueryData(workforceKeys.users(), [MEMBER]);
     vi.mocked(workforceApi.updateUserRoles).mockResolvedValue({
       ...MEMBER,
-      roles: ['INSPECTOR', 'MAINTENANCE_ENGINEER'],
+      roles: ['MAINTENANCE_ENGINEER'],
     });
     const { result } = renderHook(() => useUpdateWorkforceUserRoles(), { wrapper: wrapper(client) });
 
     await act(async () => {
       await result.current.mutateAsync({
         userId: MEMBER.userId,
-        roles: ['INSPECTOR', 'MAINTENANCE_ENGINEER'],
+        roles: ['MAINTENANCE_ENGINEER'],
       });
     });
 

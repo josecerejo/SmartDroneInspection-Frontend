@@ -6,9 +6,12 @@ export default defineConfig({
   plugins: [react(), tsconfigPaths()],
   server: {
     port: 3000,
+    fs: {
+      allow: ['..'],
+    },
     proxy: {
       '/api': {
-        target: 'http://localhost:8080',
+        target: process.env.VITE_PROXY_TARGET || 'http://localhost:18081',
         changeOrigin: true,
       },
     },

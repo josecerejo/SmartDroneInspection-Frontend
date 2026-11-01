@@ -33,6 +33,8 @@ import AssignmentIcon from '@mui/icons-material/Assignment';
 import ApartmentIcon from '@mui/icons-material/Apartment';
 import CategoryIcon from '@mui/icons-material/Category';
 import FlightTakeoffIcon from '@mui/icons-material/FlightTakeoff';
+import FlightRounded from '@mui/icons-material/FlightRounded';
+import FactCheckIcon from '@mui/icons-material/FactCheck';
 import CalendarMonthOutlinedIcon from '@mui/icons-material/CalendarMonthOutlined';
 import BuildIcon from '@mui/icons-material/Build';
 import MenuIcon from '@mui/icons-material/Menu';
@@ -80,6 +82,8 @@ const NAV_ITEMS = [
   { section: 'assets', icon: <ApartmentIcon /> },
   { section: 'asset-catalog', icon: <CategoryIcon /> },
   { section: 'inspections', icon: <FlightTakeoffIcon /> },
+  { section: 'inspector-drones', icon: <FlightRounded /> },
+  { section: 'onboarding-reviews', icon: <FactCheckIcon /> },
   { section: 'maintenance', icon: <BuildIcon /> },
   { section: 'workforce', icon: <GroupsIcon /> },
   { section: 'platform-users', icon: <ManageAccountsIcon /> },
@@ -140,6 +144,7 @@ export function AppShell({ portal }: AppShellProps) {
   const [accountMenuAnchor, setAccountMenuAnchor] = useState<HTMLElement | null>(null);
   const [signingOut, setSigningOut] = useState(false);
   const roles = useAuthStore((state) => state.roles);
+  const user = useAuthStore((state) => state.user);
   const userName = useAuthStore((state) => state.userName);
   const email = useAuthStore((state) => state.email);
   const clearSession = useAuthStore((state) => state.clearSession);
@@ -279,7 +284,7 @@ export function AppShell({ portal }: AppShellProps) {
           onClick={(event) => setAccountMenuAnchor(event.currentTarget)}
           sx={{ minHeight: 52, justifyContent: 'flex-start', gap: 1.25, px: 1, textAlign: 'left' }}
         >
-          <Avatar aria-hidden="true" sx={{ width: 36, height: 36, bgcolor: 'primary.main', fontSize: 13, fontWeight: 650 }}>
+          <Avatar src={user?.avatarUrl ?? undefined} aria-hidden="true" sx={{ width: 36, height: 36, bgcolor: 'primary.main', fontSize: 13, fontWeight: 650 }}>
             {userName?.trim().charAt(0).toUpperCase() ?? <AccountCircleOutlined fontSize="small" />}
           </Avatar>
           <Box sx={{ minWidth: 0, flex: 1 }}>

@@ -33,15 +33,15 @@ describe('workforceApi', () => {
 
     await expect(
       workforceApi.provisionUser({
-        email: 'ivy.inspector@example.test',
-        fullName: 'Ivy Inspector',
-        roles: ['INSPECTOR'],
+        email: 'manny.engineer@example.test',
+        fullName: 'Manny Engineer',
+        roles: ['MAINTENANCE_ENGINEER'],
       }),
     ).resolves.toEqual({ user: MEMBER, temporaryPassword: 'Temp-Password-1' });
     expect(api.post).toHaveBeenCalledWith('/workforce/users', {
-      email: 'ivy.inspector@example.test',
-      fullName: 'Ivy Inspector',
-      roles: ['INSPECTOR'],
+      email: 'manny.engineer@example.test',
+      fullName: 'Manny Engineer',
+      roles: ['MAINTENANCE_ENGINEER'],
     });
   });
 
@@ -49,9 +49,9 @@ describe('workforceApi', () => {
     vi.mocked(api.post).mockResolvedValue({ data: { user: MEMBER, temporaryPassword: 'Temp-1' } });
 
     await workforceApi.provisionUser({
-      email: 'ivy.inspector@example.test',
-      fullName: 'Ivy Inspector',
-      roles: ['INSPECTOR', 'MAINTENANCE_ENGINEER'],
+      email: 'manny.engineer@example.test',
+      fullName: 'Manny Engineer',
+      roles: ['MAINTENANCE_ENGINEER'],
     });
 
     // The backend derives the tenant from the authenticated CUSTOMER, so the organization is never
@@ -76,16 +76,16 @@ describe('workforceApi', () => {
 
   it('updates member roles through the roles sub-resource', async () => {
     vi.mocked(api.put).mockResolvedValue({
-      data: { ...MEMBER, roles: ['INSPECTOR', 'MAINTENANCE_ENGINEER'] },
+      data: { ...MEMBER, roles: ['MAINTENANCE_ENGINEER'] },
     });
 
     await expect(
       workforceApi.updateUserRoles(MEMBER.userId, {
-        roles: ['INSPECTOR', 'MAINTENANCE_ENGINEER'],
+        roles: ['MAINTENANCE_ENGINEER'],
       }),
-    ).resolves.toEqual({ ...MEMBER, roles: ['INSPECTOR', 'MAINTENANCE_ENGINEER'] });
+    ).resolves.toEqual({ ...MEMBER, roles: ['MAINTENANCE_ENGINEER'] });
     expect(api.put).toHaveBeenCalledWith(`/workforce/users/${MEMBER.userId}/roles`, {
-      roles: ['INSPECTOR', 'MAINTENANCE_ENGINEER'],
+      roles: ['MAINTENANCE_ENGINEER'],
     });
 
     const body = vi.mocked(api.put).mock.calls[0]![1] as Record<string, unknown>;
@@ -94,11 +94,12 @@ describe('workforceApi', () => {
 });
 
 describe('grantable workforce roles', () => {
-  it('offers only the two workforce roles an organization manager may grant', () => {
-    // ADMIN and CUSTOMER are deliberately absent: they are administrator-managed accounts, not
-    // workforce members an organization manager can provision.
-    expect([...GRANTABLE_WORKFORCE_ROLES]).toEqual(['INSPECTOR', 'MAINTENANCE_ENGINEER']);
+  it('offers only the maintenance engineer role an organization manager may grant', () => {
+    // ADMIN and CUSTOMER are deliberately absent: they are administrator-managed accounts.
+    // INSPECTOR is a partner role managed by platform manager.
+    expect([...GRANTABLE_WORKFORCE_ROLES]).toEqual(['MAINTENANCE_ENGINEER']);
     expect(GRANTABLE_WORKFORCE_ROLES).not.toContain('ADMIN');
     expect(GRANTABLE_WORKFORCE_ROLES).not.toContain('CUSTOMER');
+    expect(GRANTABLE_WORKFORCE_ROLES).not.toContain('INSPECTOR');
   });
 });

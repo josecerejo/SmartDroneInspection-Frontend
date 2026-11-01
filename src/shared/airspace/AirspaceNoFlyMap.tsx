@@ -31,6 +31,8 @@ import CloseRounded from '@mui/icons-material/CloseRounded';
 import SearchRounded from '@mui/icons-material/SearchRounded';
 import ClearRounded from '@mui/icons-material/ClearRounded';
 import PlaceRounded from '@mui/icons-material/PlaceRounded';
+import TouchAppRounded from '@mui/icons-material/TouchAppRounded';
+import TaskAltRounded from '@mui/icons-material/TaskAltRounded';
 import {
   CAMBAY_PORTAL_URL,
   VIETNAM_AIRSPACE_ZONES,
@@ -44,6 +46,14 @@ import {
 } from './airspaceZones';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 
+export interface InspectionCheckpointItem {
+  id?: string;
+  name: string;
+  description?: string | null;
+  location?: string | null;
+  status?: string | null;
+}
+
 export interface AirspaceNoFlyMapProps {
   assetName?: string | null | undefined;
   locationText?: string | null | undefined;
@@ -51,6 +61,12 @@ export interface AirspaceNoFlyMapProps {
   longitude?: number | null | undefined;
   onSelectCoordinates?: ((latitude: number, longitude: number, placeName?: string) => void) | undefined;
   compact?: boolean | undefined;
+  height?: number | string | undefined;
+  inspectionItems?: (string | InspectionCheckpointItem)[] | undefined;
+  initialPilotLocation?: { lat: number; lon: number } | undefined;
+  onSelectPilotLocation?: ((latitude: number, longitude: number) => void) | undefined;
+  readOnly?: boolean | undefined;
+  dialogMode?: boolean | undefined;
 }
 
 const DEFAULT_CENTER = { lat: 10.7805, lon: 106.7108 }; // Tâm nhịp chính Cầu Ba Son (Cầu Thủ Thiêm 2)
@@ -128,6 +144,12 @@ export function AirspaceNoFlyMap({
   longitude,
   onSelectCoordinates,
   compact = false,
+  height,
+  inspectionItems,
+  initialPilotLocation,
+  onSelectPilotLocation,
+  readOnly = false,
+  dialogMode = false,
 }: AirspaceNoFlyMapProps) {
   const isDark = useIsDarkMode();
   const { locale, t } = useLocale();
@@ -143,6 +165,8 @@ export function AirspaceNoFlyMap({
   const [viewOffset, setViewOffset] = useState<{ lat: number; lon: number } | null>(null);
   const [isTargetLocked, setIsTargetLocked] = useState<boolean>(false);
   const [isAdjustingTarget, setIsAdjustingTarget] = useState<boolean>(false);
+  const [isPickingPilotLocation, setIsPickingPilotLocation] = useState<boolean>(false);
+  const [selectedCheckpointId, setSelectedCheckpointId] = useState<string | null>(null);
   const [customTarget, setCustomTarget] = useState<{ lat: number; lon: number } | null>(() =>
     readSavedTarget(targetStorageKey),
   );
@@ -229,13 +253,39 @@ export function AirspaceNoFlyMap({
   const [pilotLocation, setPilotLocation] = useState<{
     lat: number;
     lon: number;
-    source: 'GPS' | 'SIMULATED';
-  } | null>(null);
+    source: 'GPS' | 'SIMULATED' | 'RECOMMENDED' | 'CUSTOM';
+  } | null>(initialPilotLocation ? { ...initialPilotLocation, source: 'CUSTOM' } : null);
 
   const savedLat = customTarget ? customTarget.lat : baseLat;
   const savedLon = customTarget ? customTarget.lon : baseLon;
   const activeLat = isAdjustingTarget && draftTarget ? draftTarget.lat : savedLat;
   const activeLon = isAdjustingTarget && draftTarget ? draftTarget.lon : savedLon;
+
+  // Normalize inspection checkpoints or defect repair locations around the asset structure
+  const normalizedItems: InspectionCheckpointItem[] = (inspectionItems ?? []).map((item, idx) => {
+    if (typeof item === 'string') {
+      return {
+        id: `chk-${idx + 1}`,
+        name: item,
+        location: `Điểm kiểm tra #${idx + 1}`,
+      };
+    }
+    return item;
+  });
+
+  const checkpointPositions = normalizedItems.map((item, idx) => {
+    const count = normalizedItems.length;
+    const angle = (idx * 2 * Math.PI) / Math.max(1, count);
+    const offsetDistance = count === 1 ? 0.00018 : 0.00032;
+    const itemLat = Number((activeLat + Math.sin(angle) * offsetDistance).toFixed(6));
+    const itemLon = Number((activeLon + Math.cos(angle) * offsetDistance * 1.05).toFixed(6));
+    return {
+      ...item,
+      index: idx + 1,
+      lat: itemLat,
+      lon: itemLon,
+    };
+  });
 
   const [gpsError, setGpsError] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState<boolean>(false);
@@ -271,6 +321,7 @@ export function AirspaceNoFlyMap({
 
   const handleRequestMyGps = () => {
     setGpsError(null);
+    setIsPickingPilotLocation(false);
     if (typeof navigator === 'undefined' || !navigator.geolocation) {
       setGpsError('Trình duyệt không hỗ trợ định vị GPS.');
       return;
@@ -280,10 +331,13 @@ export function AirspaceNoFlyMap({
         const lat = Number(pos.coords.latitude.toFixed(6));
         const lon = Number(pos.coords.longitude.toFixed(6));
         setPilotLocation({ lat, lon, source: 'GPS' });
+        if (onSelectPilotLocation) {
+          onSelectPilotLocation(lat, lon);
+        }
       },
       () => {
         setGpsError(
-          'Không lấy được GPS thiết bị (hoặc chưa cấp quyền vị trí). Bạn có thể dùng nút "Giả lập điểm đứng cất cánh" để kiểm thử.',
+          'Không lấy được GPS thiết bị (hoặc chưa cấp quyền vị trí). Bạn có thể dùng nút "Gợi ý cất cánh" hoặc "Tự chọn nơi đứng bay" để kiểm tra.',
         );
       },
       { enableHighAccuracy: true, timeout: 8000 },
@@ -292,7 +346,8 @@ export function AirspaceNoFlyMap({
 
   const handleSimulatePilotLocation = () => {
     setGpsError(null);
-    if (pilotLocation?.source === 'SIMULATED') {
+    setIsPickingPilotLocation(false);
+    if (pilotLocation?.source === 'SIMULATED' || pilotLocation?.source === 'RECOMMENDED') {
       setPilotLocation(null);
       return;
     }
@@ -308,6 +363,15 @@ export function AirspaceNoFlyMap({
       lon: Number(((activeLon + safePoint.lon) / 2).toFixed(6)),
     });
     setZoom(15);
+    if (onSelectPilotLocation) {
+      onSelectPilotLocation(safePoint.lat, safePoint.lon);
+    }
+  };
+
+  const handleTogglePickPilotLocation = () => {
+    setGpsError(null);
+    setIsAdjustingTarget(false);
+    setIsPickingPilotLocation((prev) => !prev);
   };
 
   const centerWorldX = lonToWorldX(centerLon, zoom);
@@ -400,14 +464,23 @@ export function AirspaceNoFlyMap({
       suppressNextClickRef.current = false;
       return;
     }
-    if (!onSelectCoordinates && !isAdjustingTarget) return;
+    if (!onSelectCoordinates && !isAdjustingTarget && !isPickingPilotLocation) return;
     const rect = event.currentTarget.getBoundingClientRect();
+    const mapHeightPx = typeof height === 'number' ? height : (compact ? 260 : MAP_HEIGHT);
     const clickX = ((event.clientX - rect.left) / (rect.width || MAP_WIDTH)) * MAP_WIDTH;
-    const clickY = ((event.clientY - rect.top) / (rect.height || MAP_HEIGHT)) * MAP_HEIGHT;
+    const clickY = ((event.clientY - rect.top) / (rect.height || mapHeightPx)) * MAP_HEIGHT;
     const worldX = topLeftWorldX + clickX;
     const worldY = topLeftWorldY + clickY;
     const pickedLat = Number(worldYToLat(worldY, zoom).toFixed(6));
     const pickedLon = Number(worldXToLon(worldX, zoom).toFixed(6));
+
+    if (isPickingPilotLocation) {
+      setPilotLocation({ lat: pickedLat, lon: pickedLon, source: 'CUSTOM' });
+      if (onSelectPilotLocation) {
+        onSelectPilotLocation(pickedLat, pickedLon);
+      }
+      return;
+    }
 
     if (isAdjustingTarget) {
       // Keep adjustment mode open so the user can click as many candidate points as they want
@@ -505,91 +578,94 @@ export function AirspaceNoFlyMap({
     <Paper
       variant="outlined"
       sx={{
-        p: { xs: 2, sm: 2.5 },
+        p: dialogMode ? 0 : { xs: 2, sm: 2.5 },
         borderRadius: '16px',
+        border: dialogMode ? 'none' : '1px solid',
         borderColor: 'divider',
-        bgcolor: 'background.paper',
+        bgcolor: dialogMode ? 'transparent' : 'background.paper',
       }}
     >
       <Stack spacing={1.75}>
-        {/* Header */}
-        <Stack
-          direction={{ xs: 'column', md: 'row' }}
-          spacing={1.5}
-          sx={{
-            alignItems: { md: 'center' },
-            justifyContent: 'space-between',
-          }}
-        >
-          <Stack direction="row" spacing={1.25} sx={{ alignItems: 'center', minWidth: 0 }}>
-            <Box
-              sx={{
-                width: 36,
-                height: 36,
-                borderRadius: '10px',
-                bgcolor: isDark ? 'rgba(148, 163, 184, 0.12)' : '#f1f5f9',
-                border: '1px solid',
-                borderColor: 'divider',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                flexShrink: 0,
-              }}
-            >
-              <RadarRounded sx={{ fontSize: 20, color: 'text.primary' }} />
-            </Box>
-            <Box sx={{ minWidth: 0 }}>
-              <Typography variant="subtitle1" sx={{ fontWeight: 700, color: 'text.primary', lineHeight: 1.3 }}>
-                Bản đồ Không phận & Vùng cấm bay
-              </Typography>
-              <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>
-                Quyết định 18/2020/QĐ-TTg · Luật Phòng không nhân dân 2024 · Nghị định 288/2025/NĐ-CP
-              </Typography>
-            </Box>
-          </Stack>
-
+        {/* Header (Hidden in Dialog Mode as DialogTitle provides it) */}
+        {!dialogMode && (
           <Stack
-            direction="row"
-            spacing={1}
-            sx={{ alignItems: 'center', flexShrink: 0, flexWrap: 'wrap' }}
+            direction={{ xs: 'column', md: 'row' }}
+            spacing={1.5}
+            sx={{
+              alignItems: { md: 'center' },
+              justifyContent: 'space-between',
+            }}
           >
-            <Chip
-              size="small"
-              icon={statusMeta.icon}
-              label={statusMeta.label}
-              sx={{
-                height: 28,
-                bgcolor: statusMeta.badgeBg,
-                border: `1px solid ${statusMeta.badgeBorder}`,
-                color: statusMeta.badgeColor,
-                fontWeight: 600,
-                fontSize: '0.75rem',
-              }}
-            />
-            <Button
-              size="small"
-              variant="outlined"
-              component="a"
-              href={CAMBAY_PORTAL_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              endIcon={<OpenInNewRounded sx={{ fontSize: 15 }} />}
-              sx={{
-                height: 28,
-                textTransform: 'none',
-                fontWeight: 600,
-                fontSize: '0.75rem',
-                borderRadius: '8px',
-                borderColor: 'divider',
-                color: 'text.primary',
-                px: 1.25,
-                '&:hover': { borderColor: 'text.secondary', bgcolor: 'action.hover' },
-              }}
+            <Stack direction="row" spacing={1.25} sx={{ alignItems: 'center', minWidth: 0 }}>
+              <Box
+                sx={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: '10px',
+                  bgcolor: isDark ? 'rgba(148, 163, 184, 0.12)' : '#f1f5f9',
+                  border: '1px solid',
+                  borderColor: 'divider',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                }}
+              >
+                <RadarRounded sx={{ fontSize: 20, color: 'text.primary' }} />
+              </Box>
+              <Box sx={{ minWidth: 0 }}>
+                <Typography variant="subtitle1" sx={{ fontWeight: 700, color: 'text.primary', lineHeight: 1.3 }}>
+                  Bản đồ Không phận & Vùng cấm bay
+                </Typography>
+                <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>
+                  Quyết định 18/2020/QĐ-TTg · Luật Phòng không nhân dân 2024 · Nghị định 288/2025/NĐ-CP
+                </Typography>
+              </Box>
+            </Stack>
+
+            <Stack
+              direction="row"
+              spacing={1}
+              sx={{ alignItems: 'center', flexShrink: 0, flexWrap: 'wrap' }}
             >
-              cambay.mod.gov.vn
-            </Button>
+              <Chip
+                size="small"
+                icon={statusMeta.icon}
+                label={statusMeta.label}
+                sx={{
+                  height: 28,
+                  bgcolor: statusMeta.badgeBg,
+                  border: `1px solid ${statusMeta.badgeBorder}`,
+                  color: statusMeta.badgeColor,
+                  fontWeight: 600,
+                  fontSize: '0.75rem',
+                }}
+              />
+              <Button
+                size="small"
+                variant="outlined"
+                component="a"
+                href={CAMBAY_PORTAL_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                endIcon={<OpenInNewRounded sx={{ fontSize: 15 }} />}
+                sx={{
+                  height: 28,
+                  textTransform: 'none',
+                  fontWeight: 600,
+                  fontSize: '0.75rem',
+                  borderRadius: '8px',
+                  borderColor: 'divider',
+                  color: 'text.primary',
+                  px: 1.25,
+                  '&:hover': { borderColor: 'text.secondary', bgcolor: 'action.hover' },
+                }}
+              >
+                cambay.mod.gov.vn
+              </Button>
+            </Stack>
           </Stack>
-        </Stack>
+        )}
 
         {/* MSG28 or Clear Advisory Alert */}
         <Alert
@@ -890,15 +966,18 @@ export function AirspaceNoFlyMap({
                 fontSize: '0.75rem',
                 fontWeight: 600,
                 borderRadius: '8px',
-                borderColor: pilotLocation?.source === 'SIMULATED' ? '#0284c7' : 'divider',
+                borderColor:
+                  pilotLocation?.source === 'SIMULATED' || pilotLocation?.source === 'RECOMMENDED'
+                    ? '#0284c7'
+                    : 'divider',
                 bgcolor:
-                  pilotLocation?.source === 'SIMULATED'
+                  pilotLocation?.source === 'SIMULATED' || pilotLocation?.source === 'RECOMMENDED'
                     ? isDark
                       ? 'rgba(2, 132, 199, 0.22)'
                       : '#e0f2fe'
                     : 'background.paper',
                 color:
-                  pilotLocation?.source === 'SIMULATED'
+                  pilotLocation?.source === 'SIMULATED' || pilotLocation?.source === 'RECOMMENDED'
                     ? isDark
                       ? '#7dd3fc'
                       : '#0369a1'
@@ -912,7 +991,44 @@ export function AirspaceNoFlyMap({
               Giả lập điểm đứng cất cánh
             </Button>
 
-            {!isAdjustingTarget ? (
+            {/* Tự chọn nơi đứng bay (Custom Pick on Map) */}
+            <Button
+              size="small"
+              variant={isPickingPilotLocation ? 'contained' : 'outlined'}
+              startIcon={<TouchAppRounded sx={{ fontSize: 15 }} />}
+              onClick={handleTogglePickPilotLocation}
+              sx={{
+                height: 28,
+                px: 1.15,
+                textTransform: 'none',
+                fontSize: '0.75rem',
+                fontWeight: 600,
+                borderRadius: '8px',
+                borderColor: isPickingPilotLocation ? '#7c3aed' : 'divider',
+                bgcolor: isPickingPilotLocation
+                  ? '#7c3aed'
+                  : pilotLocation?.source === 'CUSTOM'
+                    ? isDark
+                      ? 'rgba(124, 58, 237, 0.22)'
+                      : '#ede9fe'
+                    : 'background.paper',
+                color: isPickingPilotLocation
+                  ? '#ffffff'
+                  : pilotLocation?.source === 'CUSTOM'
+                    ? isDark
+                      ? '#c4b5fd'
+                      : '#6d28d9'
+                    : 'text.primary',
+                '&:hover': {
+                  borderColor: isPickingPilotLocation ? '#6d28d9' : 'text.secondary',
+                  bgcolor: isPickingPilotLocation ? '#6d28d9' : 'action.hover',
+                },
+              }}
+            >
+              {isPickingPilotLocation ? 'Đang chọn nơi đứng bay…' : 'Tự chọn nơi đứng bay'}
+            </Button>
+
+            {!readOnly && !isAdjustingTarget ? (
               <Button
                 size="small"
                 variant="outlined"
@@ -1060,14 +1176,14 @@ export function AirspaceNoFlyMap({
           sx={{
             position: 'relative',
             width: '100%',
-            height: compact ? 260 : MAP_HEIGHT,
+            height: height ?? (compact ? 260 : MAP_HEIGHT),
             borderRadius: '12px',
             overflow: 'hidden',
             border: '1px solid #cbd5e1',
             bgcolor: '#e2e8f0',
             cursor: isDragging
               ? 'grabbing'
-              : onSelectCoordinates || isAdjustingTarget
+              : onSelectCoordinates || isAdjustingTarget || isPickingPilotLocation
                 ? 'crosshair'
                 : 'grab',
             userSelect: 'none',
@@ -1114,7 +1230,7 @@ export function AirspaceNoFlyMap({
               inset: 0,
               width: '100%',
               height: '100%',
-              pointerEvents: isAdjustingTarget || onSelectCoordinates ? 'none' : 'auto',
+              pointerEvents: isAdjustingTarget || onSelectCoordinates || isPickingPilotLocation ? 'none' : 'auto',
             }}
           >
             {visibleZones.map((zone) => {
@@ -1128,10 +1244,10 @@ export function AirspaceNoFlyMap({
                 <g
                   key={zone.code}
                   style={{
-                    cursor: isAdjustingTarget ? 'crosshair' : 'pointer',
+                    cursor: isAdjustingTarget || isPickingPilotLocation ? 'crosshair' : 'pointer',
                   }}
                   onClick={() => {
-                    if (!isAdjustingTarget && !onSelectCoordinates) {
+                    if (!isAdjustingTarget && !onSelectCoordinates && !isPickingPilotLocation) {
                       setSelectedZoneCode(zone.code);
                     }
                   }}
@@ -1153,6 +1269,20 @@ export function AirspaceNoFlyMap({
                     stroke="#ffffff"
                     strokeWidth={1.5}
                   />
+                  {r > 30 && (
+                    <text
+                      x={cx}
+                      y={cy - r + 13}
+                      textAnchor="middle"
+                      fill={isNoFly ? '#dc2626' : '#d97706'}
+                      fontSize="10"
+                      fontWeight="700"
+                      fontFamily="Inter, system-ui, sans-serif"
+                      style={{ pointerEvents: 'none' }}
+                    >
+                      {zone.name.split('—')[0]?.trim() || zone.name} (R={(zone.radiusMeters / 1000).toFixed(1)} km)
+                    </text>
+                  )}
                 </g>
               );
             })}
@@ -1165,44 +1295,52 @@ export function AirspaceNoFlyMap({
                   y1={pilotY}
                   x2={markerX}
                   y2={markerY}
-                  stroke="#0284c7"
+                  stroke={pilotEvaluation?.classification === 'NO_FLY_ZONE' ? '#ef4444' : '#0284c7'}
                   strokeWidth={2}
                   strokeDasharray="5 4"
                 />
                 <circle
                   cx={pilotX}
                   cy={pilotY}
-                  r={14}
-                  fill="rgba(2, 132, 199, 0.20)"
-                  stroke="#0284c7"
-                  strokeWidth={1.25}
+                  r={16}
+                  fill={pilotEvaluation?.classification === 'NO_FLY_ZONE' ? 'rgba(239, 68, 68, 0.22)' : 'rgba(2, 132, 199, 0.20)'}
+                  stroke={pilotEvaluation?.classification === 'NO_FLY_ZONE' ? '#ef4444' : '#0284c7'}
+                  strokeWidth={1.5}
                 />
                 <circle
                   cx={pilotX}
                   cy={pilotY}
-                  r={6}
-                  fill="#0284c7"
+                  r={6.5}
+                  fill={pilotEvaluation?.classification === 'NO_FLY_ZONE' ? '#dc2626' : '#0284c7'}
                   stroke="#ffffff"
                   strokeWidth={2}
                 />
                 <rect
-                  x={pilotX + 10}
+                  x={pilotX + 11}
                   y={pilotY - 11}
-                  width={136}
-                  height={20}
+                  width={154}
+                  height={22}
                   rx={5}
-                  fill="rgba(15, 23, 42, 0.86)"
+                  fill="rgba(15, 23, 42, 0.88)"
+                  stroke={pilotEvaluation?.classification === 'NO_FLY_ZONE' ? '#ef4444' : '#38bdf8'}
+                  strokeWidth={1}
                 />
-                <circle cx={pilotX + 19} cy={pilotY - 1} r={3.5} fill="#38bdf8" />
+                <circle cx={pilotX + 21} cy={pilotY} r={3.5} fill={pilotEvaluation?.classification === 'NO_FLY_ZONE' ? '#f87171' : '#38bdf8'} />
                 <text
-                  x={pilotX + 27}
-                  y={pilotY + 3}
+                  x={pilotX + 30}
+                  y={pilotY + 4}
                   fill="#f8fafc"
                   fontSize="10"
                   fontWeight="600"
                   fontFamily="Inter, system-ui, sans-serif"
                 >
-                  Điểm cất cánh (Pilot)
+                  {pilotLocation?.source === 'RECOMMENDED'
+                    ? 'Gợi ý cất cánh (Safe)'
+                    : pilotLocation?.source === 'CUSTOM'
+                      ? 'Nơi đứng bay (Tự chọn)'
+                      : pilotLocation?.source === 'GPS'
+                        ? 'Vị trí GPS của bạn'
+                        : 'Điểm cất cánh (Pilot)'}
                 </text>
               </g>
             )}
@@ -1272,6 +1410,76 @@ export function AirspaceNoFlyMap({
                 Mục tiêu công trình
               </text>
             </g>
+
+            {/* Checkpoints & Defect Repair Locations on Structure */}
+            {checkpointPositions.map((chk) => {
+              const chkX = lonToWorldX(chk.lon, zoom) - topLeftWorldX;
+              const chkY = latToWorldY(chk.lat, zoom) - topLeftWorldY;
+              const isSelectedChk = selectedCheckpointId === chk.id;
+
+              return (
+                <g
+                  key={chk.id || `chk-${chk.index}`}
+                  style={{ cursor: 'pointer' }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedCheckpointId(chk.id || null);
+                  }}
+                >
+                  {/* Connector line to Asset Center */}
+                  <line
+                    x1={markerX}
+                    y1={markerY}
+                    x2={chkX}
+                    y2={chkY}
+                    stroke={isSelectedChk ? '#f59e0b' : 'rgba(168, 85, 247, 0.45)'}
+                    strokeWidth={isSelectedChk ? 2 : 1.25}
+                    strokeDasharray="3 3"
+                  />
+                  {/* Checkpoint Marker Pin */}
+                  <circle
+                    cx={chkX}
+                    cy={chkY}
+                    r={isSelectedChk ? 13 : 10}
+                    fill={isSelectedChk ? '#f59e0b' : '#10b981'}
+                    stroke="#ffffff"
+                    strokeWidth={2}
+                  />
+                  <text
+                    x={chkX}
+                    y={chkY + 3.5}
+                    textAnchor="middle"
+                    fill="#ffffff"
+                    fontSize="9"
+                    fontWeight="700"
+                    fontFamily="Inter, system-ui, sans-serif"
+                  >
+                    {chk.index}
+                  </text>
+                  {/* Label Badge */}
+                  <rect
+                    x={chkX + 11}
+                    y={chkY - 9}
+                    width={Math.max(60, chk.name.length * 6.5 + 12)}
+                    height={17}
+                    rx={4}
+                    fill="rgba(15, 23, 42, 0.85)"
+                    stroke={isSelectedChk ? '#f59e0b' : 'rgba(255,255,255,0.15)'}
+                    strokeWidth={1}
+                  />
+                  <text
+                    x={chkX + 16}
+                    y={chkY + 3}
+                    fill="#f8fafc"
+                    fontSize="9"
+                    fontWeight="600"
+                    fontFamily="Inter, system-ui, sans-serif"
+                  >
+                    #{chk.index} {chk.name.slice(0, 16)}
+                  </text>
+                </g>
+              );
+            })}
           </Box>
 
           {/* Top-Left Coordinate & Asset Overlay Pill */}
@@ -1308,12 +1516,23 @@ export function AirspaceNoFlyMap({
                 Nhấp chuột vào bất kỳ điểm nào trên bản đồ để chọn mục tiêu, sau đó bấm "Xác nhận mục tiêu" để lưu.
               </Typography>
             )}
+            {isPickingPilotLocation && (
+              <Typography variant="caption" sx={{ color: '#7dd3fc', display: 'block', mt: 0.25, fontWeight: 700 }}>
+                🎯 Chế độ tự chọn nơi đứng bay: Nhấp chuột vào bất kỳ điểm nào trên bản đồ để đặt vị trí cất cánh của phi công.
+              </Typography>
+            )}
             {pilotLocation && (
               <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mt: 0.4 }}>
                 <ColorDot color="#38bdf8" />
                 <Typography variant="caption" sx={{ color: '#bae6fd' }}>
                   Vị trí người điều khiển / Điểm cất cánh (
-                  {pilotLocation.source === 'GPS' ? 'GPS thiết bị' : 'Giả lập hiện trường'}):{' '}
+                  {pilotLocation.source === 'GPS'
+                    ? 'GPS thiết bị'
+                    : pilotLocation.source === 'RECOMMENDED'
+                      ? 'Gợi ý cất cánh an toàn'
+                      : pilotLocation.source === 'CUSTOM'
+                        ? 'Tự chọn vị trí'
+                        : 'Giả lập hiện trường'}):{' '}
                   {pilotLocation.lat.toFixed(4)}°N, {pilotLocation.lon.toFixed(4)}°E · Cách mục
                   tiêu:{' '}
                   <strong>
@@ -1445,12 +1664,113 @@ export function AirspaceNoFlyMap({
               Vùng hạn chế bay (Restricted)
             </Typography>
           </Stack>
+          {checkpointPositions.length > 0 && (
+            <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center' }}>
+              <ColorDot color="#10b981" />
+              <Typography variant="caption" sx={{ color: 'text.primary', fontWeight: 500 }}>
+                Hạng mục kiểm tra & Điểm sửa chữa ({checkpointPositions.length})
+              </Typography>
+            </Stack>
+          )}
         </Stack>
 
         {gpsError && (
           <Alert severity="info" sx={{ borderRadius: '10px', py: 0.5 }}>
             {gpsError}
           </Alert>
+        )}
+
+        {/* Danh sách vị trí cấu kiện cần kiểm tra & sửa chữa (Checkpoints & Defect Locations) */}
+        {checkpointPositions.length > 0 && (
+          <Paper
+            variant="outlined"
+            sx={{
+              p: 1.5,
+              borderRadius: '12px',
+              bgcolor: isDark ? 'rgba(15, 23, 42, 0.55)' : '#f8fafc',
+              borderColor: 'divider',
+            }}
+          >
+            <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mb: 1.25 }}>
+              <TaskAltRounded sx={{ fontSize: 18, color: 'primary.main' }} />
+              <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'text.primary' }}>
+                Vị trí cấu kiện cần kiểm tra & Điểm sửa chữa ({checkpointPositions.length} điểm)
+              </Typography>
+              <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                (Nhấp vào từng điểm để định vị trên bản đồ)
+              </Typography>
+            </Stack>
+            <Box
+              sx={{
+                display: 'grid',
+                gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(3, 1fr)' },
+                gap: 1,
+              }}
+            >
+              {checkpointPositions.map((chk) => {
+                const isSelected = selectedCheckpointId === chk.id;
+                return (
+                  <Box
+                    key={chk.id || `chk-card-${chk.index}`}
+                    onClick={() => {
+                      setSelectedCheckpointId(chk.id || null);
+                      setViewOffset({ lat: chk.lat, lon: chk.lon });
+                      setZoom(16);
+                    }}
+                    sx={{
+                      p: 1,
+                      px: 1.25,
+                      borderRadius: '8px',
+                      cursor: 'pointer',
+                      bgcolor: isSelected
+                        ? isDark
+                          ? 'rgba(245, 158, 11, 0.2)'
+                          : '#fef3c7'
+                        : isDark
+                          ? 'background.paper'
+                          : '#ffffff',
+                      border: '1px solid',
+                      borderColor: isSelected ? '#f59e0b' : 'divider',
+                      boxShadow: isSelected ? '0 0 0 1px #f59e0b' : 'none',
+                      transition: 'all 0.15s ease',
+                      '&:hover': {
+                        borderColor: '#f59e0b',
+                        transform: 'translateY(-1px)',
+                      },
+                    }}
+                  >
+                    <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+                      <Box
+                        sx={{
+                          width: 22,
+                          height: 22,
+                          borderRadius: '50%',
+                          bgcolor: isSelected ? '#f59e0b' : '#10b981',
+                          color: '#ffffff',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: '0.72rem',
+                          fontWeight: 700,
+                          flexShrink: 0,
+                        }}
+                      >
+                        {chk.index}
+                      </Box>
+                      <Box sx={{ minWidth: 0, flex: 1 }}>
+                        <Typography variant="body2" sx={{ fontWeight: 600, fontSize: '0.8rem' }} noWrap>
+                          {chk.name}
+                        </Typography>
+                        <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', fontSize: '0.7rem' }}>
+                          {chk.lat.toFixed(4)}°N, {chk.lon.toFixed(4)}°E
+                        </Typography>
+                      </Box>
+                    </Stack>
+                  </Box>
+                );
+              })}
+            </Box>
+          </Paper>
         )}
 
         {/* Đánh giá an toàn không phận tại điểm đứng cất cánh của Người điều khiển */}

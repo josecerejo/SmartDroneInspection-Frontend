@@ -8,12 +8,16 @@ import LoginPage from './LoginPage';
 
 const authMocks = vi.hoisted(() => ({
   login: vi.fn(),
+  sendLoginOtp: vi.fn(),
+  verifyLoginOtp: vi.fn(),
   completeInitialPasswordSetup: vi.fn(),
   getAuthErrorMessage: vi.fn((error: unknown) => error instanceof Error ? error.message : 'Sign in failed.'),
 }));
 
 vi.mock('../api/authApi', () => ({
   login: authMocks.login,
+  sendLoginOtp: authMocks.sendLoginOtp,
+  verifyLoginOtp: authMocks.verifyLoginOtp,
   completeInitialPasswordSetup: authMocks.completeInitialPasswordSetup,
   getAuthErrorMessage: authMocks.getAuthErrorMessage,
 }));
@@ -54,6 +58,8 @@ describe('role-aware sign-in flow', () => {
 
   beforeEach(() => {
     authMocks.login.mockReset();
+    authMocks.sendLoginOtp.mockReset();
+    authMocks.verifyLoginOtp.mockReset();
     authMocks.completeInitialPasswordSetup.mockReset();
     useAuthStore.getState().clearSession();
   });
@@ -132,6 +138,55 @@ describe('role-aware sign-in flow', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
     await screen.findByText('Inspection detail');
     expect(screen.getByLabelText('Current location').textContent).toBe('/operations/inspections');
+  });
+
+  it('requires an Inspector email or SMS code before creating a web session', async () => {
+    authMocks.login.mockResolvedValue({
+      step: 'OTP_REQUIRED',
+      accessToken: null,
+      accessTokenExpiresInSeconds: 0,
+      user: null,
+      challengeToken: 'challenge-token',
+      availableOtpChannels: ['EMAIL', 'SMS'],
+    });
+    authMocks.sendLoginOtp.mockResolvedValue(undefined);
+    authMocks.verifyLoginOtp.mockResolvedValue({
+      step: 'AUTHENTICATED',
+      accessToken: 'otp-verified-token',
+      accessTokenExpiresInSeconds: 900,
+      user: {
+        id: 'field-user',
+        email: 'field@example.test',
+        fullName: 'Field User',
+        roles: ['INSPECTOR'],
+        actorZone: 'CUSTOMER_ORGANIZATION',
+        organizationId: 'org-1',
+      },
+    });
+
+    renderLogin();
+    fireEvent.change(screen.getByRole('textbox', { name: /email address/i }), {
+      target: { value: 'field@example.test' },
+    });
+    fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'valid-password' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
+
+    await screen.findByRole('heading', { name: 'Verify it’s you' });
+    expect(useAuthStore.getState().status).toBe('anonymous');
+    fireEvent.click(screen.getByRole('button', { name: 'Send verification code' }));
+    await waitFor(() => expect(authMocks.sendLoginOtp).toHaveBeenCalledWith('challenge-token', 'EMAIL'));
+    fireEvent.change(screen.getByRole('textbox', { name: 'Verification code' }), {
+      target: { value: '123456' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Verify and sign in' }));
+
+    await screen.findByText('Operations dashboard');
+    expect(authMocks.verifyLoginOtp).toHaveBeenCalledWith('challenge-token', '123456');
+    expect(useAuthStore.getState()).toMatchObject({
+      status: 'authenticated',
+      accessToken: 'otp-verified-token',
+      roles: ['INSPECTOR'],
+    });
   });
 
   it('shows rejected credentials without creating a session', async () => {

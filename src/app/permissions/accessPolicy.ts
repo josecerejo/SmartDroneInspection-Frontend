@@ -27,7 +27,6 @@ export const SECTION_IDS = [
   'maintenance',
   'workforce',
   'subscriptions',
-  'drone-leasing',
   'platform-users',
   'finance-settings',
   'onboarding-reviews',
@@ -47,7 +46,6 @@ export const SECTION_LABELS: Record<SectionId, string> = {
   maintenance: 'Maintenance',
   workforce: 'Workforce',
   subscriptions: 'Subscriptions',
-  'drone-leasing': 'Drone leasing',
   'platform-users': 'Platform accounts',
   'finance-settings': 'Finance settings',
   'onboarding-reviews': 'Onboarding reviews',
@@ -75,7 +73,6 @@ const SECTION_LABELS_VI: Record<SectionId, string> = {
   maintenance: 'Bảo trì',
   workforce: 'Nhân sự',
   subscriptions: 'Gói thuê bao',
-  'drone-leasing': 'Thuê thiết bị bay',
   'platform-users': 'Tài khoản nền tảng',
   'finance-settings': 'Cấu hình tài chính',
   'onboarding-reviews': 'Duyệt hồ sơ đăng ký',
@@ -123,11 +120,10 @@ const SECTION_ROLE_ACCESS = {
     // Workforce is a customer-organization function; the platform workspace does not expose it.
     workforce: [],
     subscriptions: ['ADMIN', 'MANAGER'],
-    'drone-leasing': ['ADMIN', 'MANAGER'],
     // Platform administration of the administrator-managed accounts (FE-01).
-    'platform-users': ['ADMIN'],
+    'platform-users': ['ADMIN', 'MANAGER'],
     'finance-settings': ['ADMIN'],
-    'onboarding-reviews': ['ADMIN'],
+    'onboarding-reviews': ['ADMIN', 'MANAGER'],
     'inspector-drones': [],
     settings: ['ADMIN', 'MANAGER'],
   },
@@ -142,7 +138,6 @@ const SECTION_ROLE_ACCESS = {
     // Workforce provisioning is limited to the organization CUSTOMER account.
     workforce: ['CUSTOMER'],
     subscriptions: ['CUSTOMER'],
-    'drone-leasing': ['CUSTOMER'],
     // The platform's own account administration is not a customer-organization function.
     'platform-users': [],
     'finance-settings': [],
@@ -160,7 +155,6 @@ const SECTION_ROLE_ACCESS = {
     maintenance: ['MAINTENANCE_ENGINEER'],
     workforce: [],
     subscriptions: [],
-    'drone-leasing': [],
     'platform-users': [],
     'finance-settings': [],
     'onboarding-reviews': [],
