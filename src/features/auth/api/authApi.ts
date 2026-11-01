@@ -11,13 +11,18 @@ import {
   type Role,
 } from '../store/authStore';
 
-export type AuthStep = 'AUTHENTICATED' | 'PASSWORD_CHANGE_REQUIRED';
+export type AuthStep =
+  | 'AUTHENTICATED'
+  | 'PASSWORD_CHANGE_REQUIRED'
+  | 'OTP_REQUIRED';
 
 export interface AuthFlowResponse {
   step: AuthStep;
   accessToken: string | null;
   accessTokenExpiresInSeconds: number;
-  user: AuthUser;
+  user?: AuthUser | null;
+  challengeToken?: string;
+  availableOtpChannels?: Array<'EMAIL' | 'SMS'>;
 }
 
 export interface FirstAssetRegistrationInput {
@@ -32,10 +37,63 @@ export interface FirstAssetRegistrationInput {
 export interface OrganizationRegistrationRequest {
   email: string;
   fullName: string;
+  phoneNumber?: string | undefined;
   organizationName: string;
   organizationCode: string;
   password: string;
-  firstAsset: FirstAssetRegistrationInput;
+  firstAsset?: FirstAssetRegistrationInput | undefined;
+  otpChallengeToken?: string | undefined;
+  otpCode?: string | undefined;
+}
+
+export interface SendRegistrationOtpInput {
+  email: string;
+  phoneNumber?: string | undefined;
+  channel?: 'EMAIL' | 'SMS' | undefined;
+}
+
+export interface SendRegistrationOtpResponse {
+  challengeToken: string;
+  channel: string;
+  expiresInSeconds: number;
+}
+
+export async function sendRegistrationOtp(
+  input: SendRegistrationOtpInput,
+): Promise<SendRegistrationOtpResponse> {
+  const { data } = await postWithBrowserCsrf<SendRegistrationOtpResponse>(
+    '/auth/registration/otp/send',
+    input,
+  );
+  return data;
+}
+
+export interface SendPasswordResetOtpResponse {
+  challengeToken: string;
+  expiresInSeconds: number;
+}
+
+export async function sendPasswordResetOtp(
+  email: string,
+): Promise<SendPasswordResetOtpResponse> {
+  const { data } = await postWithBrowserCsrf<SendPasswordResetOtpResponse>(
+    '/auth/password-reset/otp/send',
+    { email },
+  );
+  return data;
+}
+
+export interface ConfirmPasswordResetInput {
+  email: string;
+  challengeToken: string;
+  code: string;
+  newPassword: string;
+}
+
+export async function confirmPasswordReset(
+  input: ConfirmPasswordResetInput,
+): Promise<void> {
+  await postWithBrowserCsrf<void>('/auth/password-reset/confirm', input);
 }
 
 interface ApiUser {
@@ -45,6 +103,7 @@ interface ApiUser {
   roles: unknown;
   actorZone: string;
   organizationId: string | null;
+  avatarUrl?: string | null;
   visionFallbackEnabled?: boolean;
   pilotLicenseNumber?: string;
   pilotLicenseClass?: string;
@@ -57,6 +116,8 @@ interface ApiAuthFlow {
   accessToken: unknown;
   accessTokenExpiresInSeconds: unknown;
   user: unknown;
+  challengeToken?: unknown;
+  availableOtpChannels?: unknown;
 }
 
 export interface OrganizationRegistrationResponse {
@@ -106,6 +167,7 @@ function parseUser(value: unknown): AuthUser {
     actorZone,
     organizationId:
       typeof user.organizationId === 'string' ? user.organizationId : null,
+    avatarUrl: typeof user.avatarUrl === 'string' ? user.avatarUrl : null,
     visionFallbackEnabled:
       typeof user.visionFallbackEnabled === 'boolean'
         ? user.visionFallbackEnabled
@@ -137,7 +199,8 @@ function parseAuthFlow(value: unknown): AuthFlowResponse {
   const flow = value as ApiAuthFlow;
   if (
     (flow.step !== 'AUTHENTICATED' &&
-      flow.step !== 'PASSWORD_CHANGE_REQUIRED') ||
+      flow.step !== 'PASSWORD_CHANGE_REQUIRED' &&
+      flow.step !== 'OTP_REQUIRED') ||
     (flow.accessToken !== null &&
       flow.accessToken !== undefined &&
       typeof flow.accessToken !== 'string') ||
@@ -146,11 +209,24 @@ function parseAuthFlow(value: unknown): AuthFlowResponse {
     throw new Error('The server returned an invalid authentication response.');
   }
 
+  const otpChannels = Array.isArray(flow.availableOtpChannels)
+    ? flow.availableOtpChannels.filter(
+        (channel): channel is 'EMAIL' | 'SMS' => channel === 'EMAIL' || channel === 'SMS',
+      )
+    : undefined;
+  const user =
+    flow.user === null || flow.user === undefined ? null : parseUser(flow.user);
+  if (flow.step === 'AUTHENTICATED' || flow.step === 'PASSWORD_CHANGE_REQUIRED') {
+    if (!user) throw new Error('The server returned an invalid account profile.');
+  }
+
   return {
     step: flow.step,
     accessToken: typeof flow.accessToken === 'string' ? flow.accessToken : null,
     accessTokenExpiresInSeconds: flow.accessTokenExpiresInSeconds,
-    user: parseUser(flow.user),
+    user,
+    ...(typeof flow.challengeToken === 'string' && { challengeToken: flow.challengeToken }),
+    ...(otpChannels && { availableOtpChannels: otpChannels }),
   };
 }
 
@@ -165,6 +241,24 @@ async function postAuthFlow(
 
 export function login(email: string, password: string): Promise<AuthFlowResponse> {
   return postAuthFlow('/auth/login', { email, password });
+}
+
+export function loginWithGoogle(idToken: string): Promise<AuthFlowResponse> {
+  return postAuthFlow('/auth/google', { idToken });
+}
+
+export function sendLoginOtp(
+  challengeToken: string,
+  channel: 'EMAIL' | 'SMS',
+): Promise<void> {
+  return postWithBrowserCsrf('/auth/otp/send', { challengeToken, channel }).then(() => undefined);
+}
+
+export function verifyLoginOtp(
+  challengeToken: string,
+  code: string,
+): Promise<AuthFlowResponse> {
+  return postAuthFlow('/auth/otp/verify', { challengeToken, code });
 }
 
 export function completeInitialPasswordSetup(
@@ -288,12 +382,19 @@ export async function fetchCurrentUser(accessToken?: string): Promise<AuthUser> 
   const config = accessToken
     ? { headers: { Authorization: `Bearer ${accessToken}` } }
     : undefined;
-  const { data } = await api.get<unknown>('/auth/me', config);
+  const { data } = await api.get<unknown>('/users/me', config);
   return parseUser(data);
 }
 
 export async function logoutAllSessions(): Promise<void> {
   await postWithBrowserCsrf('/auth/logout-all');
+}
+
+export async function updateAvatar(avatarUrl: string): Promise<AuthUser> {
+  const { data } = await api.patch<AuthUser>('/auth/profile/avatar', {
+    avatarUrl,
+  });
+  return parseUser(data);
 }
 
 export async function updateVisionFallbackPreference(visionFallbackEnabled: boolean): Promise<AuthUser> {

@@ -4,7 +4,6 @@ import {
   assetApi,
   assetKeys,
   type AssetListFilters,
-  type AssetReviewInput,
   type CreateAssetInput,
 } from '../api/assetApi';
 
@@ -13,13 +12,6 @@ export function useAssets(filters: AssetListFilters, enabled = true) {
     queryKey: assetKeys.list(filters),
     queryFn: () => assetApi.list(filters),
     enabled,
-  });
-}
-
-export function usePendingReviewAssets(filters: AssetListFilters) {
-  return useQuery({
-    queryKey: assetKeys.pendingReview(),
-    queryFn: () => assetApi.listPendingReview(filters),
   });
 }
 
@@ -42,23 +34,6 @@ export function useCreateAsset() {
     },
     onError: (err: any) => {
       showToast(err.response?.data?.detail || 'Failed to create asset', 'error');
-    },
-  });
-}
-
-export function useReviewAsset() {
-  const queryClient = useQueryClient();
-  const showToast = useToastStore((s) => s.showToast);
-
-  return useMutation({
-    mutationFn: ({ id, input }: { id: string; input: AssetReviewInput }) =>
-      assetApi.review(id, input),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: assetKeys.all });
-      showToast('Asset reviewed successfully');
-    },
-    onError: (err: any) => {
-      showToast(err.response?.data?.detail || 'Failed to review asset', 'error');
     },
   });
 }

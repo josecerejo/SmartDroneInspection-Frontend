@@ -15,11 +15,14 @@ import SendRoundedIcon from '@mui/icons-material/SendRounded';
 import ForumOutlinedIcon from '@mui/icons-material/ForumOutlined';
 import PersonOutlineRoundedIcon from '@mui/icons-material/PersonOutlineRounded';
 import SupportAgentRoundedIcon from '@mui/icons-material/SupportAgentRounded';
+import SmartToyOutlinedIcon from '@mui/icons-material/SmartToyOutlined';
 import { useAuthStore } from '@/features/auth/store/authStore';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 import { LoadingButton } from '@/shared/ui/LoadingButton';
 import { type ServiceRequest } from '../api/contractApi';
 import { usePostRequestMessage } from '../hooks/useContracts';
+import { generateContextualAiBotReply, shouldAiBotAutoReply } from '../utils/aiChatAssistant';
+import { useManagerPresence } from '../utils/presence';
 
 interface RequestChatPanelProps {
   request: ServiceRequest;
@@ -27,25 +30,22 @@ interface RequestChatPanelProps {
   onError: (message: string) => void;
 }
 
-const QUICK_PROMPTS = [
-  'Propose early morning flight window (07:00 - 09:00)',
-  'Request thermal / optical zoom payload drone',
-  'Request quote adjustment to match project budget',
-  'Clarify restricted airspace flight permit requirements',
-];
-
 export function RequestChatPanel({ request, onChanged, onError }: RequestChatPanelProps) {
   const { t } = useLocale();
   const currentUser = useAuthStore((state) => state.user);
+  const userRoles = useAuthStore((state) => state.roles);
+  const isManagerRole = userRoles.includes('MANAGER') || userRoles.includes('ADMIN');
+  const isManagerOnline = useManagerPresence(isManagerRole);
   const post = usePostRequestMessage(request.id);
   const [body, setBody] = useState('');
+  const [botTyping, setBotTyping] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [request.messages]);
+  }, [request.messages, botTyping]);
 
   const send = async (textToSend?: string) => {
     const text = (textToSend ?? body).trim();
@@ -54,6 +54,23 @@ export function RequestChatPanel({ request, onChanged, onError }: RequestChatPan
       await post.mutateAsync(text);
       setBody('');
       onChanged();
+
+      // AUTOMATED AI BOT: ONLY trigger if Manager is currently OFFLINE and has not taken over
+      const shouldAutoReply = shouldAiBotAutoReply(request.messages, text, isManagerRole, isManagerOnline);
+      if (shouldAutoReply) {
+        setBotTyping(true);
+        window.setTimeout(async () => {
+          try {
+            const aiReply = generateContextualAiBotReply(text, request);
+            await post.mutateAsync(aiReply);
+            onChanged();
+          } catch {
+            // bot error ignored
+          } finally {
+            setBotTyping(false);
+          }
+        }, 1500);
+      }
     } catch (error) {
       const msg = error instanceof Error ? error.message : 'Không thể gửi tin nhắn.';
       onError(msg);
@@ -64,7 +81,7 @@ export function RequestChatPanel({ request, onChanged, onError }: RequestChatPan
     <Card
       variant="outlined"
       sx={{
-        borderRadius: '16px',
+        borderRadius: 3,
         borderColor: 'divider',
         display: 'flex',
         flexDirection: 'column',
@@ -79,20 +96,34 @@ export function RequestChatPanel({ request, onChanged, onError }: RequestChatPan
             </Avatar>
             <Box>
               <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-                {t('Commercial Terms & Negotiation')}
+                {t('Contract Negotiation & Terms')}
               </Typography>
               <Typography variant="caption" color="text.secondary">
-                {t('Direct communication channel between Customer and Platform Manager for this request')}
+                {t('Direct channel between Customer and Service Manager for this request')}
               </Typography>
             </Box>
           </Stack>
-          <Chip
-            size="small"
-            label={`${request.messages.length} ${t('messages')}`}
-            color={request.messages.length > 0 ? 'primary' : 'default'}
-            variant="outlined"
-            sx={{ fontWeight: 600, fontSize: '0.75rem' }}
-          />
+          <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+            <Chip
+              icon={<SmartToyOutlinedIcon sx={{ fontSize: '14px !important' }} />}
+              label={
+                isManagerRole
+                  ? t('Direct negotiation with customer')
+                  : t('Ask AI Assistant')
+              }
+              size="small"
+              color="secondary"
+              variant="outlined"
+              sx={{ fontWeight: 650, fontSize: '0.72rem' }}
+            />
+            <Chip
+              size="small"
+              label={`${request.messages.length} ${t('messages')}`}
+              color={request.messages.length > 0 ? 'primary' : 'default'}
+              variant="outlined"
+              sx={{ fontWeight: 600, fontSize: '0.75rem' }}
+            />
+          </Stack>
         </Stack>
       </CardContent>
 
@@ -106,7 +137,7 @@ export function RequestChatPanel({ request, onChanged, onError }: RequestChatPan
           minHeight: 340,
           maxHeight: { xs: 420, md: 520 },
           overflowY: 'auto',
-          bgcolor: 'background.default',
+          bgcolor: (theme) => (theme.palette.mode === 'dark' ? 'background.default' : '#f8fafc'),
           display: 'flex',
           flexDirection: 'column',
           gap: 2,
@@ -116,7 +147,7 @@ export function RequestChatPanel({ request, onChanged, onError }: RequestChatPan
           },
           '&::-webkit-scrollbar-thumb': {
             bgcolor: 'divider',
-            borderRadius: '5px',
+            borderRadius: 3,
           },
         }}
       >
@@ -134,10 +165,10 @@ export function RequestChatPanel({ request, onChanged, onError }: RequestChatPan
           >
             <ForumOutlinedIcon sx={{ fontSize: 48, opacity: 0.25, mb: 1.5 }} />
             <Typography variant="body2" sx={{ fontWeight: 600 }}>
-              {t('No negotiation messages yet')}
+              Chưa có tin nhắn đàm phán nào
             </Typography>
             <Typography variant="caption" sx={{ maxWidth: 380, textAlign: 'center', mt: 0.75, color: 'text.secondary' }}>
-              {t('Send a message or select a quick prompt below to clarify flight windows, payload requirements, or pricing.')}
+              Gửi tin nhắn hoặc chọn gợi ý nhanh bên dưới để làm rõ điều kiện bay, khung giờ và chi phí với đối tác.
             </Typography>
           </Box>
         ) : (
@@ -145,6 +176,7 @@ export function RequestChatPanel({ request, onChanged, onError }: RequestChatPan
             const isMe = currentUser?.id === message.authorUserId;
             const authorRole = message.authorRole;
             const isManager = authorRole === 'MANAGER' || authorRole === 'ADMIN';
+            const isAiBot = message.body.startsWith('🤖');
 
             return (
               <Box
@@ -166,25 +198,27 @@ export function RequestChatPanel({ request, onChanged, onError }: RequestChatPan
                   }}
                 >
                   {!isMe && (
-                    isManager ? (
+                    isAiBot ? (
+                      <SmartToyOutlinedIcon sx={{ fontSize: 16, color: 'secondary.main' }} />
+                    ) : isManager ? (
                       <SupportAgentRoundedIcon sx={{ fontSize: 16, color: 'info.main' }} />
                     ) : (
                       <PersonOutlineRoundedIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
                     )
                   )}
                   <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.primary' }}>
-                    {isMe ? t('You') : message.authorName || t('Partner')}
+                    {isMe ? 'Bạn' : isAiBot ? 'Trợ lý AI SmartDrone' : message.authorName || 'Đối tác'}
                   </Typography>
-                  {authorRole && !isMe && (
+                  {!isMe && (
                     <Chip
-                      label={isManager ? t('Platform Manager') : t('Customer')}
+                      label={isAiBot ? 'AI Assistant' : isManager ? 'Quản lý Dịch vụ' : 'Khách hàng'}
                       size="small"
-                      color={isManager ? 'info' : 'default'}
+                      color={isAiBot ? 'secondary' : isManager ? 'info' : 'default'}
                       variant="outlined"
-                      sx={{ height: 18, fontSize: '0.75rem', fontWeight: 600 }}
+                      sx={{ height: 18, fontSize: '0.68rem', fontWeight: 600 }}
                     />
                   )}
-                  <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.75rem' }}>
+                  <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.72rem' }}>
                     {new Date(message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </Typography>
                 </Stack>
@@ -194,11 +228,23 @@ export function RequestChatPanel({ request, onChanged, onError }: RequestChatPan
                   sx={{
                     px: 2,
                     py: 1.25,
-                    borderRadius: '10px',
-                    bgcolor: isMe ? 'primary.main' : 'background.paper',
+                    borderRadius: isMe ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
+                    bgcolor: (theme) =>
+                      isMe
+                        ? 'primary.main'
+                        : isAiBot
+                          ? theme.palette.mode === 'dark'
+                            ? 'rgba(156, 39, 176, 0.18)'
+                            : '#f3e5f5'
+                          : theme.palette.mode === 'dark'
+                            ? 'background.paper'
+                            : '#ffffff',
                     color: isMe ? 'primary.contrastText' : 'text.primary',
                     border: isMe ? 'none' : '1px solid',
-                    borderColor: 'divider',
+                    borderColor: isAiBot ? 'secondary.light' : 'divider',
+                    boxShadow: isMe
+                      ? '0 2px 6px rgba(0, 109, 119, 0.2)'
+                      : '0 1px 3px rgba(0,0,0,0.04)',
                   }}
                 >
                   <Typography
@@ -207,7 +253,7 @@ export function RequestChatPanel({ request, onChanged, onError }: RequestChatPan
                       whiteSpace: 'pre-wrap',
                       wordBreak: 'break-word',
                       lineHeight: 1.55,
-                      fontSize: '0.875rem',
+                      fontSize: '0.88rem',
                     }}
                   >
                     {message.body}
@@ -217,55 +263,29 @@ export function RequestChatPanel({ request, onChanged, onError }: RequestChatPan
             );
           })
         )}
-      </Box>
-
-      {/* Quick Prompts Bar */}
-      <Box
-        sx={{
-          px: 2,
-          py: 1,
-          bgcolor: 'background.paper',
-          borderTop: '1px solid',
-          borderColor: 'divider',
-        }}
-      >
-        <Stack
-          direction="row"
-          spacing={1}
-          sx={{
-            overflowX: 'auto',
-            py: 0.5,
-            scrollbarWidth: 'none',
-            '&::-webkit-scrollbar': { display: 'none' },
-            msOverflowStyle: 'none',
-          }}
-        >
-          {QUICK_PROMPTS.map((prompt) => {
-            const localizedPrompt = t(prompt);
-            return (
-              <Chip
-                key={prompt}
-                label={localizedPrompt}
-                size="small"
-                clickable
-                onClick={() => {
-                  setBody((prev) => (prev ? `${prev}\n${localizedPrompt}` : localizedPrompt));
-                }}
-                sx={{
-                  fontSize: '0.75rem',
-                  height: 28,
-                  bgcolor: 'action.hover',
-                  border: '1px solid',
-                  borderColor: 'divider',
-                  flexShrink: 0,
-                  '&:hover': {
-                    bgcolor: 'action.selected',
-                  },
-                }}
-              />
-            );
-          })}
-        </Stack>
+        {botTyping && (
+          <Box
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1.25,
+              p: 1.5,
+              px: 2,
+              borderRadius: '16px 16px 16px 4px',
+              bgcolor: (theme) =>
+                theme.palette.mode === 'dark' ? 'rgba(156, 39, 176, 0.15)' : '#f3e5f5',
+              border: '1px solid',
+              borderColor: 'secondary.light',
+              alignSelf: 'flex-start',
+              maxWidth: '80%',
+            }}
+          >
+            <SmartToyOutlinedIcon sx={{ fontSize: 18, color: 'secondary.main' }} />
+            <Typography variant="body2" sx={{ color: 'secondary.main', fontStyle: 'italic', fontWeight: 600 }}>
+              Trợ lý AI SmartDrone đang soạn câu trả lời...
+            </Typography>
+          </Box>
+        )}
       </Box>
 
       <Divider />
@@ -279,7 +299,7 @@ export function RequestChatPanel({ request, onChanged, onError }: RequestChatPan
             multiline
             minRows={1}
             maxRows={4}
-            placeholder={t('Enter message or commercial terms…')}
+            placeholder="Nhập nội dung trao đổi hoặc đàm phán điều khoản..."
             value={body}
             onChange={(event) => setBody(event.target.value)}
             onKeyDown={(event) => {
@@ -290,14 +310,13 @@ export function RequestChatPanel({ request, onChanged, onError }: RequestChatPan
             }}
             slotProps={{
               input: {
-                sx: { borderRadius: '8px', fontSize: '0.875rem' },
+                sx: { borderRadius: 2, fontSize: '0.9rem' },
               },
             }}
           />
           <LoadingButton
             variant="contained"
             color="primary"
-            aria-label={t('Send message')}
             loading={post.isPending}
             disabled={!body.trim()}
             onClick={() => void send()}
@@ -305,15 +324,15 @@ export function RequestChatPanel({ request, onChanged, onError }: RequestChatPan
               minWidth: 44,
               width: 44,
               height: 40,
-              borderRadius: '8px',
+              borderRadius: 2,
               p: 0,
             }}
           >
             <SendRoundedIcon fontSize="small" />
           </LoadingButton>
         </Stack>
-        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5, fontSize: '0.75rem' }}>
-          {t('Press Enter to send, Shift + Enter for a new line.')}
+        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5, fontSize: '0.7rem' }}>
+          💡 Mẹo: Bấm <strong>Enter</strong> để gửi tin nhắn, <strong>Shift + Enter</strong> để xuống dòng.
         </Typography>
       </Box>
     </Card>

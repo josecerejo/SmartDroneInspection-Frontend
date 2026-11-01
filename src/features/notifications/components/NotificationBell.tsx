@@ -3,6 +3,7 @@ import { Badge, IconButton, Tooltip } from '@mui/material';
 import NotificationsOutlined from '@mui/icons-material/NotificationsOutlined';
 import type { PortalId } from '@/app/permissions/accessPolicy';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
+import { useUnreadChatSummary } from '@/features/contracts/hooks/useContracts';
 import { useNotificationUnreadCount } from '../hooks/useNotifications';
 import { NotificationInboxPopover } from './NotificationInboxPopover';
 
@@ -14,7 +15,8 @@ export function NotificationBell({ portal }: NotificationBellProps) {
   const { t } = useLocale();
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
   const { data } = useNotificationUnreadCount();
-  const unreadCount = data?.unreadCount ?? 0;
+  const { totalUnread: unreadChatCount, items: unreadChatItems } = useUnreadChatSummary();
+  const unreadCount = (data?.unreadCount ?? 0) + unreadChatCount;
 
   const handleClick = (event: MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);
@@ -61,6 +63,7 @@ export function NotificationBell({ portal }: NotificationBellProps) {
         open={Boolean(anchorEl)}
         onClose={handleClose}
         portal={portal}
+        unreadChatItems={unreadChatItems}
       />
     </>
   );

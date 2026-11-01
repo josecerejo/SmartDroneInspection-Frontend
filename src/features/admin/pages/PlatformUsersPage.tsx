@@ -15,6 +15,7 @@ import {
   Typography,
 } from '@mui/material';
 import PersonAddAlt from '@mui/icons-material/PersonAddAlt';
+import FlightTakeoffRounded from '@mui/icons-material/FlightTakeoffRounded';
 import { DataTable, type DataTableColumn } from '@/shared/ui/DataTable';
 import { EmptyState } from '@/shared/ui/EmptyState';
 import { LoadingButton } from '@/shared/ui/LoadingButton';
@@ -27,8 +28,10 @@ import {
   useResetPlatformUserPassword,
   useUpdatePlatformUserStatus,
 } from '../hooks/usePlatformUsers';
-import type { PlatformUser, PlatformUserRole } from '../api/platformUserApi';
+import type { ActorZone, PlatformUser, PlatformUserRole } from '../api/platformUserApi';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
+import { useAuthStore } from '@/features/auth/store/authStore';
+import { InspectorProfileDialog } from '../components/InspectorProfileDialog';
 
 const ZONE_LABELS: Record<string, string> = {
   PLATFORM: 'Platform',
@@ -55,6 +58,9 @@ const ROLE_LABELS: Record<PlatformUserRole, string> = {
  */
 export default function PlatformUsersPage() {
   const { t } = useLocale();
+  const currentRoles = useAuthStore((state) => state.roles);
+  const isManager = currentRoles.includes('MANAGER') && !currentRoles.includes('ADMIN');
+
   const users = usePlatformUsers();
   const createUser = useCreatePlatformUser();
   const resetPassword = useResetPlatformUserPassword();
@@ -63,13 +69,20 @@ export default function PlatformUsersPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [email, setEmail] = useState('');
   const [fullName, setFullName] = useState('');
-  const [actorZone, setActorZone] = useState<'PLATFORM' | 'CUSTOMER_ORGANIZATION'>('PLATFORM');
-  const [roles, setRoles] = useState<PlatformUserRole[]>(['ADMIN']);
+  const [actorZone, setActorZone] = useState<ActorZone>(
+    isManager ? 'INSPECTOR_PARTNER' : 'PLATFORM',
+  );
+  const [roles, setRoles] = useState<PlatformUserRole[]>(
+    isManager ? ['INSPECTOR'] : ['ADMIN'],
+  );
 
   const [issuedPassword, setIssuedPassword] = useState<{
     email: string;
     temporaryPassword: string;
   } | null>(null);
+
+  const [selectedInspectorId, setSelectedInspectorId] = useState<string | null>(null);
+  const [profileDialogOpen, setProfileDialogOpen] = useState(false);
 
   const items = users.data ?? [];
 
@@ -111,48 +124,89 @@ export default function PlatformUsersPage() {
     {
       id: 'actions',
       label: '',
-      width: 220,
-      align: 'right',
-      render: (user) => (
-        <Stack direction="row" spacing={1} sx={{ justifyContent: 'flex-end' }}>
-          <Button
-            size="small"
-            variant="outlined"
-            onClick={() =>
-              resetPassword.mutate(user.id, {
-                onSuccess: (data) =>
-                  setIssuedPassword({
-                    email: user.email,
-                    temporaryPassword: data.temporaryPassword,
-                  }),
-              })
-            }
-          >
-            {t('Reset password')}
-          </Button>
-          <Button
-            size="small"
-            variant="text"
-            color="error"
-            onClick={() => updateStatus.mutate({ userId: user.id, status: 'SUSPENDED' })}
-          >
-            {t('Suspend')}
-          </Button>
-        </Stack>
-      ),
+      width: isManager ? 200 : 360,
+      align: 'right' as const,
+      render: (user: PlatformUser) => {
+        const isInspectorUser =
+          user.roles.includes('INSPECTOR') || user.actorZone === 'INSPECTOR_PARTNER';
+
+        return (
+          <Stack direction="row" spacing={1} sx={{ justifyContent: 'flex-end', alignItems: 'center' }}>
+            {isInspectorUser && (
+              <Button
+                size="small"
+                variant="contained"
+                startIcon={<FlightTakeoffRounded />}
+                onClick={() => {
+                  setSelectedInspectorId(user.id);
+                  setProfileDialogOpen(true);
+                }}
+                sx={{
+                  bgcolor: '#3758F9',
+                  textTransform: 'none',
+                  fontWeight: 600,
+                  fontSize: '12px',
+                  borderRadius: '8px',
+                  boxShadow: 'none',
+                  '&:hover': { bgcolor: '#2b45cb' },
+                }}
+              >
+                {t('Hồ sơ phi công')}
+              </Button>
+            )}
+            {!isManager && (
+              <>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  onClick={() =>
+                    resetPassword.mutate(user.id, {
+                      onSuccess: (data) =>
+                        setIssuedPassword({
+                          email: user.email,
+                          temporaryPassword: data.temporaryPassword,
+                        }),
+                    })
+                  }
+                >
+                  {t('Reset password')}
+                </Button>
+                <Button
+                  size="small"
+                  variant="text"
+                  color="error"
+                  onClick={() => updateStatus.mutate({ userId: user.id, status: 'SUSPENDED' })}
+                >
+                  {t('Suspend')}
+                </Button>
+              </>
+            )}
+          </Stack>
+        );
+      },
     },
   ];
 
   return (
     <Box className="workspace-page workspace-page--admin-users">
       <PageHeader
-        title={t('Platform accounts')}
-        subtitle={t('Administrator-managed accounts: platform admins and each workspace\'s Organization Manager')}
+        title={isManager ? t('Partner workforce') : t('Platform accounts')}
+        subtitle={
+          isManager
+            ? t('Manage partner Inspector accounts.')
+            : t('Administrator-managed accounts: platform admins and each workspace\'s Organization Manager')
+        }
         actions={
           <Button
             variant="contained"
             startIcon={<PersonAddAlt />}
-            onClick={() => setCreateOpen(true)}
+            onClick={() => {
+              if (isManager) {
+                setActorZone('INSPECTOR_PARTNER');
+                setRoles(['INSPECTOR']);
+              }
+              setCreateOpen(true);
+            }}
             sx={{
               borderRadius: '10px',
               px: 2.5,
@@ -165,7 +219,7 @@ export default function PlatformUsersPage() {
               '&:hover': { bgcolor: '#2b45cb' },
             }}
           >
-            {t('New account')}
+            {isManager ? t('New partner inspector') : t('New account')}
           </Button>
         }
       />
@@ -232,16 +286,16 @@ export default function PlatformUsersPage() {
               {
                 email: email.trim(),
                 fullName: fullName.trim(),
-                actorZone,
+                actorZone: isManager ? 'INSPECTOR_PARTNER' : actorZone,
                 organizationId: null,
-                roles,
+                roles: isManager ? ['INSPECTOR'] : roles,
               },
               {
                 onSuccess: (provisioned) => {
                   setCreateOpen(false);
                   setEmail('');
                   setFullName('');
-                  setRoles(['ADMIN']);
+                  setRoles(isManager ? ['INSPECTOR'] : ['ADMIN']);
                   setIssuedPassword({
                     email: provisioned.user.email,
                     temporaryPassword: provisioned.temporaryPassword,
@@ -251,7 +305,9 @@ export default function PlatformUsersPage() {
             );
           }}
         >
-          <DialogTitle sx={{ fontWeight: 700 }}>{t('New platform account')}</DialogTitle>
+          <DialogTitle sx={{ fontWeight: 700 }}>
+            {isManager ? t('New partner inspector') : t('New platform account')}
+          </DialogTitle>
           <DialogContent>
             <Stack spacing={2} sx={{ mt: 1 }}>
               <MutationProblemAlert
@@ -272,45 +328,77 @@ export default function PlatformUsersPage() {
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
               />
-              <TextField
-                select
-                label={t('Zone')}
-                value={actorZone}
-                onChange={(e) => {
-                  const nextZone = e.target.value as typeof actorZone;
-                  setActorZone(nextZone);
-                  if (nextZone === 'PLATFORM') {
-                    setRoles(['ADMIN']);
-                  } else {
-                    setRoles(['CUSTOMER']);
-                  }
-                }}
-              >
-                <MenuItem value="PLATFORM">{t('Platform')}</MenuItem>
-                <MenuItem value="CUSTOMER_ORGANIZATION">{t('Customer organization')}</MenuItem>
-              </TextField>
-              <TextField
-                select
-                label={t('Role')}
-                value={roles[0] ?? (actorZone === 'PLATFORM' ? 'ADMIN' : 'CUSTOMER')}
-                onChange={(e) => setRoles([e.target.value as PlatformUserRole])}
-                helperText={t('The platform manages administrator-managed accounts only.')}
-              >
-                {(
-                  actorZone === 'PLATFORM'
-                    ? (['ADMIN', 'MANAGER'] as PlatformUserRole[])
-                    : (['CUSTOMER', 'INSPECTOR', 'MAINTENANCE_ENGINEER'] as PlatformUserRole[])
-                ).map((role) => (
-                  <MenuItem key={role} value={role}>
-                    {ROLE_LABELS[role]}
-                  </MenuItem>
-                ))}
-              </TextField>
-              <Alert severity="info">
-                A customer-organization account needs the organization it belongs to. Provisioning
-                one here registers the account without a workspace, so use the organization's own
-                registration or its Organization Manager for that.
-              </Alert>
+              {isManager ? (
+                <>
+                  <TextField
+                    label={t('Zone')}
+                    value={t('Inspector partner')}
+                    disabled
+                  />
+                  <TextField
+                    label={t('Role')}
+                    value={t('Inspector')}
+                    disabled
+                  />
+                  <Alert severity="info">
+                    {t('Platform Manager is authorized to provision partner Inspector accounts.')}
+                  </Alert>
+                </>
+              ) : (
+                <>
+                  <TextField
+                    select
+                    label={t('Zone')}
+                    value={actorZone}
+                    onChange={(e) => {
+                      const nextZone = e.target.value as ActorZone;
+                      setActorZone(nextZone);
+                      if (nextZone === 'PLATFORM') {
+                        setRoles(['ADMIN']);
+                      } else if (nextZone === 'INSPECTOR_PARTNER') {
+                        setRoles(['INSPECTOR']);
+                      } else {
+                        setRoles(['CUSTOMER']);
+                      }
+                    }}
+                  >
+                    <MenuItem value="PLATFORM">{t('Platform')}</MenuItem>
+                    <MenuItem value="CUSTOMER_ORGANIZATION">{t('Customer organization')}</MenuItem>
+                    <MenuItem value="INSPECTOR_PARTNER">{t('Inspector partner')}</MenuItem>
+                  </TextField>
+                  <TextField
+                    select
+                    label={t('Role')}
+                    value={
+                      roles[0] ??
+                      (actorZone === 'PLATFORM'
+                        ? 'ADMIN'
+                        : actorZone === 'INSPECTOR_PARTNER'
+                          ? 'INSPECTOR'
+                          : 'CUSTOMER')
+                    }
+                    onChange={(e) => setRoles([e.target.value as PlatformUserRole])}
+                    helperText={t('The platform manages administrator-managed accounts only.')}
+                  >
+                    {(
+                      actorZone === 'PLATFORM'
+                        ? (['ADMIN', 'MANAGER'] as PlatformUserRole[])
+                        : actorZone === 'INSPECTOR_PARTNER'
+                          ? (['INSPECTOR'] as PlatformUserRole[])
+                          : (['CUSTOMER', 'INSPECTOR', 'MAINTENANCE_ENGINEER'] as PlatformUserRole[])
+                    ).map((role) => (
+                      <MenuItem key={role} value={role}>
+                        {ROLE_LABELS[role]}
+                      </MenuItem>
+                    ))}
+                  </TextField>
+                  <Alert severity="info">
+                    A customer-organization account needs the organization it belongs to. Provisioning
+                    one here registers the account without a workspace, so use the organization's own
+                    registration or its Organization Manager for that.
+                  </Alert>
+                </>
+              )}
             </Stack>
           </DialogContent>
           <DialogActions sx={{ px: 3, pb: 2 }}>
@@ -374,6 +462,12 @@ export default function PlatformUsersPage() {
           </Button>
         </DialogActions>
       </Dialog>
+
+      <InspectorProfileDialog
+        open={profileDialogOpen}
+        onClose={() => setProfileDialogOpen(false)}
+        inspectorId={selectedInspectorId}
+      />
     </Box>
   );
 }

@@ -19,9 +19,11 @@ import {
 import ChevronLeftRounded from '@mui/icons-material/ChevronLeftRounded';
 import ChevronRightRounded from '@mui/icons-material/ChevronRightRounded';
 import DoneAllRounded from '@mui/icons-material/DoneAllRounded';
+import ForumRoundedIcon from '@mui/icons-material/ForumRounded';
 import type { PortalId } from '@/app/permissions/accessPolicy';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 import { EmptyState } from '@/shared/ui/EmptyState';
+import type { UnreadChatNotification } from '@/features/contracts/hooks/useContracts';
 import {
   useMarkNotificationAsRead,
   useNotifications,
@@ -35,6 +37,7 @@ interface NotificationInboxPopoverProps {
   open: boolean;
   onClose: () => void;
   portal: PortalId;
+  unreadChatItems?: UnreadChatNotification[];
 }
 
 export function NotificationInboxPopover({
@@ -42,6 +45,7 @@ export function NotificationInboxPopover({
   open,
   onClose,
   portal,
+  unreadChatItems,
 }: NotificationInboxPopoverProps) {
   const { t } = useLocale();
   const navigate = useNavigate();
@@ -235,7 +239,88 @@ export function NotificationInboxPopover({
           </Box>
         )}
 
-        {!isLoading && !isError && items.length === 0 && (
+        {/* Unread Contract Chat Messages */}
+        {unreadChatItems && unreadChatItems.length > 0 && (
+          <Box
+            sx={{
+              p: 1.5,
+              bgcolor: (theme) =>
+                theme.palette.mode === 'dark' ? 'rgba(87, 80, 241, 0.1)' : '#eef2ff',
+              borderBottom: 1,
+              borderColor: 'divider',
+            }}
+          >
+            <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mb: 1 }}>
+              <ForumRoundedIcon sx={{ fontSize: 17, color: 'primary.main' }} />
+              <Typography
+                variant="caption"
+                sx={{
+                  fontWeight: 750,
+                  color: 'primary.main',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.04em',
+                }}
+              >
+                {t('Contract negotiation messages')}
+              </Typography>
+            </Stack>
+            <Stack spacing={1}>
+              {unreadChatItems.map((chat) => (
+                <Box
+                  key={chat.requestId}
+                  onClick={() => {
+                    navigate(
+                      `${portal === 'admin' ? '/admin' : '/client'}/contracts?requestId=${chat.requestId}`,
+                    );
+                    onClose();
+                  }}
+                  sx={{
+                    p: 1.25,
+                    borderRadius: 1.5,
+                    border: '1px solid',
+                    borderColor: 'primary.light',
+                    bgcolor: 'background.paper',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                    '&:hover': {
+                      bgcolor: 'action.hover',
+                      transform: 'translateY(-1px)',
+                    },
+                  }}
+                >
+                  <Stack
+                    direction="row"
+                    sx={{ justifyContent: 'space-between', alignItems: 'center', mb: 0.25 }}
+                  >
+                    <Typography
+                      variant="body2"
+                      sx={{ fontWeight: 700, fontSize: '0.8125rem' }}
+                      noWrap
+                    >
+                      {chat.requestDescription}
+                    </Typography>
+                    <Chip
+                      size="small"
+                      color="error"
+                      label={`${chat.unreadCount} ${t('New')}`}
+                      sx={{ height: 18, fontSize: '0.65rem', fontWeight: 800 }}
+                    />
+                  </Stack>
+                  <Typography
+                    variant="caption"
+                    color="text.secondary"
+                    sx={{ display: 'block' }}
+                    noWrap
+                  >
+                    <strong>{chat.latestMessageAuthor}:</strong> {chat.latestMessageBody}
+                  </Typography>
+                </Box>
+              ))}
+            </Stack>
+          </Box>
+        )}
+
+        {!isLoading && !isError && items.length === 0 && (!unreadChatItems || unreadChatItems.length === 0) && (
           <Box sx={{ py: 3, px: 2 }}>
             <EmptyState
               title={t('No notifications')}

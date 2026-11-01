@@ -52,12 +52,13 @@ export const organizationRegistrationSchema = z
         'Use 3–64 letters, numbers, hyphens, or underscores; start with a letter or number.',
       ),
     email: emailField,
+    phoneNumber: z.string().trim().max(32).optional(),
     password: z
       .string()
       .min(15, 'Use at least 15 characters.')
       .max(128, 'Password must be 128 characters or fewer.'),
     confirmPassword: z.string(),
-    firstAsset: firstAssetSchema,
+    firstAsset: firstAssetSchema.optional(),
   })
   .refine((values) => values.password === values.confirmPassword, {
     path: ['confirmPassword'],

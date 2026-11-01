@@ -17,6 +17,7 @@ import {
 import CheckCircleRounded from '@mui/icons-material/CheckCircleRounded';
 import FlightTakeoffRounded from '@mui/icons-material/FlightTakeoffRounded';
 import UploadFileRounded from '@mui/icons-material/UploadFileRounded';
+import MapRounded from '@mui/icons-material/MapRounded';
 import { LoadingButton } from '@/shared/ui/LoadingButton';
 import { MutationProblemAlert } from '@/shared/ui/MutationProblemAlert';
 import { QueryState } from '@/shared/ui/QueryState';
@@ -32,6 +33,7 @@ import {
 import { TargetFlightShotList } from '../components/TargetFlightShotList';
 import type { FieldSession } from '../api/fieldSessionApi';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
+import { AirspaceFlightPlannerDialog } from '@/shared/airspace/AirspaceFlightPlannerDialog';
 
 /** Record a mission permit file and the Inspector's on-site session. */
 export default function FieldSessionPage() {
@@ -49,6 +51,7 @@ export default function FieldSessionPage() {
   const [permitFile, setPermitFile] = useState<File | null>(null);
   const [startOpen, setStartOpen] = useState(false);
   const [preFlightNote, setPreFlightNote] = useState('');
+  const [surveyMapOpen, setSurveyMapOpen] = useState(false);
   const [outcomeTarget, setOutcomeTarget] = useState<{
     session: FieldSession;
     kind: 'abort' | 'complete';
@@ -96,16 +99,44 @@ export default function FieldSessionPage() {
           />
         )}
 
-        <Stack direction="row" spacing={1.25} sx={{ alignItems: 'center' }}>
-          <FlightTakeoffRounded color="primary" />
-          <Box>
-            <Typography variant="h6" sx={{ fontWeight: 700 }}>
-              {t('On-site session')}
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              {inspection?.assetName ?? t('Field session')}
-            </Typography>
-          </Box>
+        <Stack
+          direction={{ xs: 'column', sm: 'row' }}
+          spacing={1.25}
+          sx={{ alignItems: { sm: 'center' }, justifyContent: 'space-between', flexWrap: 'wrap', gap: 1 }}
+        >
+          <Stack direction="row" spacing={1.25} sx={{ alignItems: 'center' }}>
+            <FlightTakeoffRounded color="primary" />
+            <Box>
+              <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                {t('On-site session')}
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                {inspection?.assetName ?? t('Field session')}
+              </Typography>
+            </Box>
+          </Stack>
+          <Button
+            size="small"
+            variant="outlined"
+            startIcon={<MapRounded sx={{ fontSize: 16 }} />}
+            onClick={() => setSurveyMapOpen(true)}
+            sx={{
+              textTransform: 'none',
+              fontWeight: 600,
+              fontSize: '0.8125rem',
+              borderRadius: '8px',
+              borderColor: 'primary.main',
+              color: 'primary.main',
+              bgcolor: 'rgba(55, 88, 249, 0.05)',
+              alignSelf: { xs: 'flex-start', sm: 'center' },
+              '&:hover': {
+                borderColor: 'primary.dark',
+                bgcolor: 'rgba(55, 88, 249, 0.12)',
+              },
+            }}
+          >
+            {t('🗺️ Xem Bản đồ khảo sát vùng bay & Điểm cất cánh')}
+          </Button>
         </Stack>
 
         <QueryState
@@ -464,6 +495,16 @@ export default function FieldSessionPage() {
           </DialogActions>
         </form>
       </Dialog>
+
+      {inspection && (
+        <AirspaceFlightPlannerDialog
+          open={surveyMapOpen}
+          onClose={() => setSurveyMapOpen(false)}
+          assetName={inspection.assetName || 'Công trình kiểm định'}
+          locationText={inspection.locationText}
+          inspectionItems={inspection.inspectionItems ?? []}
+        />
+      )}
     </Box>
   );
 }

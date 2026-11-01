@@ -1,43 +1,43 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import {
   Alert,
   Box,
+  Button,
   Card,
   CardContent,
   Chip,
   CircularProgress,
-  FormControl,
   InputAdornment,
-  InputLabel,
   MenuItem,
   Paper,
-  Select,
   Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
   TextField,
   Typography,
 } from '@mui/material';
+import AddIcon from '@mui/icons-material/Add';
+import ArrowBackRoundedIcon from '@mui/icons-material/ArrowBackRounded';
+import ArrowForwardRoundedIcon from '@mui/icons-material/ArrowForwardRounded';
 import SearchRoundedIcon from '@mui/icons-material/SearchRounded';
+import AssignmentOutlinedIcon from '@mui/icons-material/AssignmentOutlined';
+import HandshakeOutlinedIcon from '@mui/icons-material/HandshakeOutlined';
 import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
 import { useAuthStore } from '@/features/auth/store/authStore';
-import { LoadingButton } from '@/shared/ui/LoadingButton';
-import { useLocale } from '@/shared/i18n/LocaleProvider';
 import { useAssets } from '@/features/assets/hooks/useAssets';
-import {
-  type CreateServiceRequestInput,
-} from '../api/contractApi';
-import {
-  useCreateServiceRequest,
-  useServiceRequest,
-  useServiceRequests,
-} from '../hooks/useContracts';
+import { useLocale } from '@/shared/i18n/LocaleProvider';
+import { type ServiceRequest } from '../api/contractApi';
+import { useServiceRequest, useServiceRequests } from '../hooks/useContracts';
 import { ContractLifecycleStepper } from '../components/ContractLifecycleStepper';
-import { RequestChatPanel } from '../components/RequestChatPanel';
 import { RequestQuotePanel } from '../components/RequestQuotePanel';
 import { SignedContractPanel } from '../components/SignedContractPanel';
 import { OccurrencesPanel } from '../components/OccurrencesPanel';
-
-const plusDays = (days: number) =>
-  new Date(Date.now() + days * 86_400_000).toISOString().slice(0, 10);
+import { CreateRequestDialog } from '../components/CreateRequestDialog';
+import { FloatingNegotiationChat } from '../components/FloatingNegotiationChat';
 
 function errorText(error: unknown): string {
   if (typeof error === 'object' && error !== null && 'response' in error) {
@@ -48,18 +48,38 @@ function errorText(error: unknown): string {
   return error instanceof Error ? error.message : 'Unable to complete this action.';
 }
 
+function getStatusChipColor(status: ServiceRequest['status']) {
+  switch (status) {
+    case 'OPEN':
+      return { color: 'default' as const, dotColor: '#757575' };
+    case 'QUOTED':
+      return { color: 'warning' as const, dotColor: '#ed6c02' };
+    case 'ACCEPTED':
+      return { color: 'info' as const, dotColor: '#0288d1' };
+    case 'CONTRACT_SIGNED':
+      return { color: 'primary' as const, dotColor: '#1976d2' };
+    case 'ASSIGNED':
+      return { color: 'success' as const, dotColor: '#2e7d32' };
+    default:
+      return { color: 'default' as const, dotColor: '#757575' };
+  }
+}
+
 export default function ContractsPage() {
   const { t } = useLocale();
   const roles = useAuthStore((state) => state.roles);
   const isCustomer = roles.includes('CUSTOMER');
   const isManager = roles.includes('MANAGER');
+
   const requests = useServiceRequests();
   const assets = useAssets({ page: 1, pageSize: 100 }, isCustomer);
 
-  const [selectedRequestId, setSelectedRequestId] = useState('');
+  const [selectedRequestId, setSelectedRequestId] = useState<string>('');
   const selectedRequest = useServiceRequest(selectedRequestId || undefined);
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('ALL');
 
   const refreshSelectedRequest = () => {
     void requests.refetch();
@@ -67,99 +87,275 @@ export default function ContractsPage() {
   };
 
   if (!isCustomer && !isManager) {
-    return <Alert severity="error">MF2 is available to Customer and Platform Manager accounts.</Alert>;
+    return (
+      <Box sx={{ p: 3, maxWidth: 800, mx: 'auto' }}>
+        <Alert severity="error">MF2 is available to Customer and Platform Manager accounts.</Alert>
+      </Box>
+    );
   }
-  if (requests.isPending) return <CircularProgress aria-label="Loading requests" />;
-  if (requests.isError) return <Alert severity="error">{errorText(requests.error)}</Alert>;
+
+  if (requests.isPending) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 320 }}>
+        <CircularProgress aria-label="Loading requests" />
+      </Box>
+    );
+  }
+
+  if (requests.isError) {
+    return (
+      <Box sx={{ p: 3, maxWidth: 800, mx: 'auto' }}>
+        <Alert severity="error">{errorText(requests.error)}</Alert>
+      </Box>
+    );
+  }
 
   const requestItems = requests.data ?? [];
-  const activeRequestId = selectedRequestId || requestItems[0]?.id || '';
   const currentRequest =
-    selectedRequest.data?.id === activeRequestId
-      ? selectedRequest.data
-      : requestItems.find((item) => item.id === activeRequestId);
+    selectedRequest.data || requestItems.find((item) => item.id === selectedRequestId);
 
+  // Filter requests
   const filteredRequests = requestItems.filter((req) => {
-    if (!search.trim()) return true;
-    const term = search.toLowerCase();
-    return (
-      req.description.toLowerCase().includes(term) ||
-      req.status.toLowerCase().includes(term) ||
-      req.requestType.toLowerCase().includes(term)
-    );
+    const matchesSearch =
+      !search.trim() ||
+      req.description.toLowerCase().includes(search.toLowerCase()) ||
+      req.status.toLowerCase().includes(search.toLowerCase()) ||
+      req.requestType.toLowerCase().includes(search.toLowerCase());
+
+    const matchesStatus = statusFilter === 'ALL' || req.status === statusFilter;
+    return matchesSearch && matchesStatus;
   });
 
+  // Summary Metrics
+  const openNegotiatingCount = requestItems.filter((r) => r.status === 'OPEN' || r.status === 'QUOTED').length;
+  const signedAssignedCount = requestItems.filter((r) => r.status === 'CONTRACT_SIGNED' || r.status === 'ASSIGNED').length;
+
   return (
-    <Stack spacing={3} sx={{ maxWidth: 1400, mx: 'auto', p: { xs: 2, md: 3 } }}>
-      {/* Header */}
-      <Box>
-        <Typography variant="h4" sx={{ fontWeight: 800, color: 'text.primary' }}>
-          {t('Inspection service requests')}
-        </Typography>
-        <Typography color="text.secondary" sx={{ mt: 0.5, fontSize: '0.875rem' }}>
-          {t(
-            'Request drone surveys, negotiate commercial terms, store signed contract scans, and track assigned occurrences.',
-          )}
-        </Typography>
-      </Box>
+    <Box sx={{ maxWidth: 1440, mx: 'auto', p: { xs: 2, md: 3.5 } }}>
+      {/* Top Banner Errors */}
+      {error && (
+        <Alert severity="error" onClose={() => setError('')} sx={{ mb: 2.5, borderRadius: 1.5 }}>
+          {error}
+        </Alert>
+      )}
 
-      {error && <Alert severity="error" onClose={() => setError('')}>{error}</Alert>}
-      {isCustomer && assets.isError && <Alert severity="error">{errorText(assets.error)}</Alert>}
-
-      {/* Main 2-Column Split */}
-      <Stack direction={{ xs: 'column', md: 'row' }} spacing={2.5} sx={{ alignItems: 'flex-start' }}>
-        {/* Left Sidebar (Requests List & Create Form) */}
-        <Card
-          variant="outlined"
-          sx={{
-            width: { xs: '100%', md: 330 },
-            flexShrink: 0,
-            borderRadius: '16px',
-            borderColor: 'divider',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
-          }}
-        >
-          <CardContent sx={{ p: 2 }}>
-            <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
-              <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                {t('Requests')}
-              </Typography>
-              <Chip
-                label={`${requestItems.length} ${t('requests')}`}
-                size="small"
-                variant="outlined"
-                sx={{ fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}
-              />
-            </Stack>
-
-            {/* Create Request Form for Customer */}
-            {isCustomer && assets.isPending ? <CircularProgress size={22} aria-label="Loading assets" /> : null}
-            {isCustomer && !assets.isPending && (assets.data?.items?.length ?? 0) === 0 ? (
-              <Typography color="text.secondary" variant="body2" sx={{ mb: 1.5 }}>
-                {t('Add an active asset before submitting an inspection request.')}
-              </Typography>
-            ) : null}
-            {isCustomer && !assets.isPending && (assets.data?.items?.length ?? 0) > 0 && (
-              <Paper
-                variant="outlined"
-                sx={{ p: 2, mb: 2, borderRadius: '10px', bgcolor: 'action.hover', borderColor: 'divider' }}
-              >
-                <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.25, color: 'primary.main' }}>
-                  {t('New inspection request')}
-                </Typography>
-                <CreateRequestForm
-                  assets={assets.data?.items ?? []}
-                  onCreated={(id) => setSelectedRequestId(id)}
-                  onError={setError}
-                />
-              </Paper>
+      {/* VIEW 1: REQUEST DETAIL WORKSPACE (When a request is selected) */}
+      {selectedRequestId && currentRequest ? (
+        <Stack spacing={3}>
+          {/* Back button & Action bar */}
+          <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center' }}>
+            <Button
+              startIcon={<ArrowBackRoundedIcon />}
+              onClick={() => setSelectedRequestId('')}
+              variant="outlined"
+              size="small"
+              sx={{ borderRadius: 1.5, textTransform: 'none', fontWeight: 650 }}
+            >
+              {t('Back to requests list')}
+            </Button>
+            {selectedRequest.isFetching && (
+              <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+                <CircularProgress size={16} />
+                <Typography variant="caption" color="text.secondary">{t('Syncing...')}</Typography>
+              </Stack>
             )}
+          </Stack>
 
-            {/* Search Box */}
+          {/* Request Header Card */}
+          <Card
+            variant="outlined"
+            sx={{
+              borderRadius: 2.5,
+              borderColor: 'divider',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+            }}
+          >
+            <CardContent sx={{ p: { xs: 2, sm: 2.5 } }}>
+              <Stack spacing={1.5}>
+                <Stack
+                  direction={{ xs: 'column', sm: 'row' }}
+                  spacing={1.5}
+                  sx={{ justifyContent: 'space-between', alignItems: { sm: 'center' }, flexWrap: 'wrap' }}
+                >
+                  <Box sx={{ minWidth: 0 }}>
+                    <Typography variant="h5" sx={{ fontWeight: 800, color: 'text.primary' }}>
+                      {currentRequest.description}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                      {t('Requested window')}: <strong>{currentRequest.requestedFrom} – {currentRequest.requestedUntil}</strong> ·{' '}
+                      {currentRequest.timezone} · ({currentRequest.windowStart || '08:00'}–{currentRequest.windowEnd || '17:00'})
+                    </Typography>
+                  </Box>
+                  <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+                    <Chip
+                      label={currentRequest.status.replaceAll('_', ' ')}
+                      color={getStatusChipColor(currentRequest.status).color}
+                      sx={{ fontWeight: 700, px: 0.5 }}
+                    />
+                    <Chip
+                      label={currentRequest.requestType === 'ONE_TIME' ? t('One-time') : t('Recurring')}
+                      variant="outlined"
+                      sx={{ fontWeight: 600 }}
+                    />
+                  </Stack>
+                </Stack>
+
+                {currentRequest.requestType === 'RECURRING' && (
+                  <Typography variant="body2" sx={{ color: 'text.secondary', bgcolor: 'action.hover', p: 1, borderRadius: 1 }}>
+                    Chu kỳ: mỗi {currentRequest.recurrenceInterval} {currentRequest.recurrenceUnit?.toLowerCase()}
+                    {currentRequest.occurrenceCount ? ` · ${currentRequest.occurrenceCount} đợt bay` : ''}
+                    {currentRequest.recurrenceEndDate ? ` · đến hết ngày ${currentRequest.recurrenceEndDate}` : ''}
+                    {' · Giá báo là đơn giá cho từng đợt bay'}
+                  </Typography>
+                )}
+              </Stack>
+            </CardContent>
+          </Card>
+
+          {/* Stepper tiến trình vòng đời */}
+          <ContractLifecycleStepper status={currentRequest.status} />
+
+          {/* Hoạt động 1: Báo giá & Phê duyệt */}
+          <RequestQuotePanel
+            request={currentRequest}
+            customer={isCustomer}
+            manager={isManager}
+            onChanged={refreshSelectedRequest}
+            onError={setError}
+          />
+
+          {/* Hoạt động 2: Ký hợp đồng giấy & Upload bằng chứng */}
+          {(isCustomer || isManager) && (
+            <SignedContractPanel
+              request={currentRequest}
+              manager={isManager}
+              onChanged={refreshSelectedRequest}
+              onError={setError}
+            />
+          )}
+
+          {/* Hoạt động 3: Đợt bay & Phân công phi công/drone */}
+          <OccurrencesPanel
+            request={currentRequest}
+            manager={isManager}
+            onChanged={refreshSelectedRequest}
+            onError={setError}
+          />
+        </Stack>
+      ) : (
+        /* VIEW 2: MASTER TABLE VIEW (Giống màn hình Organization inspections) */
+        <Stack spacing={3}>
+          {/* Header Row */}
+          <Stack
+            direction={{ xs: 'column', sm: 'row' }}
+            sx={{ justifyContent: 'space-between', alignItems: { sm: 'center' }, gap: 2 }}
+          >
+            <Box>
+              <Typography variant="h4" sx={{ fontWeight: 800, color: 'text.primary' }}>
+                {t('Inspection service requests')}
+              </Typography>
+              <Typography color="text.secondary" sx={{ mt: 0.5, fontSize: '0.95rem' }}>
+                {t('Manage request progress, commercial terms, service contracts, and inspection occurrence dispatch.')}
+              </Typography>
+            </Box>
+
+            {isCustomer && (
+              <Button
+                variant="contained"
+                startIcon={<AddIcon />}
+                onClick={() => setCreateDialogOpen(true)}
+                sx={{
+                  borderRadius: 2,
+                  px: 2.5,
+                  py: 1,
+                  fontWeight: 700,
+                  textTransform: 'none',
+                  boxShadow: 'none',
+                }}
+              >
+                {t('New service request')}
+              </Button>
+            )}
+          </Stack>
+
+          {/* Summary Metric Cards (Phong cách giống ảnh Organization inspections) */}
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+            <Paper
+              variant="outlined"
+              sx={{
+                flex: 1,
+                p: 2,
+                borderRadius: 2,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 2,
+                bgcolor: 'background.paper',
+              }}
+            >
+              <Box
+                sx={{
+                  p: 1.25,
+                  borderRadius: 2,
+                  bgcolor: (theme) => (theme.palette.mode === 'dark' ? 'rgba(237, 108, 2, 0.15)' : '#fff8e1'),
+                  color: 'warning.main',
+                  display: 'flex',
+                }}
+              >
+                <AssignmentOutlinedIcon />
+              </Box>
+              <Box>
+                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
+                  {t('Open & negotiating requests')}
+                </Typography>
+                <Typography variant="h5" sx={{ fontWeight: 800 }}>
+                  {openNegotiatingCount}
+                </Typography>
+              </Box>
+            </Paper>
+
+            <Paper
+              variant="outlined"
+              sx={{
+                flex: 1,
+                p: 2,
+                borderRadius: 2,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 2,
+                bgcolor: 'background.paper',
+              }}
+            >
+              <Box
+                sx={{
+                  p: 1.25,
+                  borderRadius: 2,
+                  bgcolor: (theme) => (theme.palette.mode === 'dark' ? 'rgba(46, 125, 50, 0.15)' : '#e8f5e9'),
+                  color: 'success.main',
+                  display: 'flex',
+                }}
+              >
+                <HandshakeOutlinedIcon />
+              </Box>
+              <Box>
+                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
+                  {t('Signed contracts & dispatched')}
+                </Typography>
+                <Typography variant="h5" sx={{ fontWeight: 800 }}>
+                  {signedAssignedCount}
+                </Typography>
+              </Box>
+            </Paper>
+          </Stack>
+
+          {/* Filter Bar */}
+          <Stack
+            direction={{ xs: 'column', sm: 'row' }}
+            spacing={2}
+            sx={{ alignItems: 'center', justifyContent: 'space-between', gap: 1.5 }}
+          >
             <TextField
               size="small"
-              fullWidth
-              placeholder={t('Search requests…')}
+              placeholder={t('Search requests, scope of work...')}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               slotProps={{
@@ -169,380 +365,215 @@ export default function ContractsPage() {
                       <SearchRoundedIcon fontSize="small" sx={{ color: 'text.secondary' }} />
                     </InputAdornment>
                   ),
-                  sx: { borderRadius: '8px', fontSize: '0.875rem' },
+                  sx: { borderRadius: 1.5, minWidth: { xs: '100%', sm: 300 } },
                 },
               }}
-              sx={{ mb: 1.5 }}
             />
 
-            {/* Request List */}
-            {filteredRequests.length === 0 ? (
-              <Typography color="text.secondary" variant="body2" sx={{ py: 3, textAlign: 'center' }}>
-                {search ? t('No matching requests found.') : t('No requests yet.')}
-              </Typography>
-            ) : (
-              <Stack spacing={1.25} sx={{ maxHeight: 600, overflowY: 'auto', pr: 0.5 }}>
-                {filteredRequests.map((request) => {
-                  const isSelected = request.id === activeRequestId;
-                  const isAssigned = request.status === 'ASSIGNED';
+            <TextField
+              select
+              size="small"
+              label={t('Filter by status')}
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              sx={{ minWidth: 200, width: { xs: '100%', sm: 'auto' } }}
+            >
+              <MenuItem value="ALL">{t('All statuses')}</MenuItem>
+              <MenuItem value="OPEN">{t('Open')} (OPEN)</MenuItem>
+              <MenuItem value="QUOTED">{t('Quoted')} (QUOTED)</MenuItem>
+              <MenuItem value="ACCEPTED">{t('Accepted')} (ACCEPTED)</MenuItem>
+              <MenuItem value="CONTRACT_SIGNED">{t('Contract Signed')} (CONTRACT_SIGNED)</MenuItem>
+              <MenuItem value="ASSIGNED">{t('Assigned')} (ASSIGNED)</MenuItem>
+            </TextField>
+          </Stack>
 
-                  return (
-                    <Paper
-                      key={request.id}
-                      variant="outlined"
-                      onClick={() => setSelectedRequestId(request.id)}
-                      sx={{
-                        p: 1.5,
-                        cursor: 'pointer',
-                        borderRadius: '10px',
-                        transition: 'all 0.15s ease',
-                        border: '1.5px solid',
-                        borderColor: isSelected ? 'primary.main' : 'divider',
-                        bgcolor: isSelected ? 'action.selected' : 'background.paper',
-                        '&:hover': {
-                          bgcolor: isSelected ? 'action.selected' : 'action.hover',
-                          borderColor: isSelected ? 'primary.main' : 'primary.light',
-                        },
-                      }}
-                    >
-                      <Stack spacing={0.75}>
-                        <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'flex-start', gap: 1 }}>
-                          <Typography
-                            variant="body2"
-                            sx={{
-                              fontWeight: isSelected ? 700 : 600,
-                              color: isSelected ? 'primary.main' : 'text.primary',
-                              lineHeight: 1.3,
-                            }}
-                          >
-                            {request.description}
-                          </Typography>
-                          <Chip
-                            label={request.status.replaceAll('_', ' ')}
-                            size="small"
-                            color={isAssigned ? 'success' : isSelected ? 'primary' : 'default'}
-                            variant={isSelected ? 'filled' : 'outlined'}
-                            sx={{ height: 20, fontSize: '0.75rem', fontWeight: 700, flexShrink: 0 }}
-                          />
-                        </Stack>
-
-                        <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center' }}>
-                          <Typography variant="caption" color="text.secondary" sx={{ fontVariantNumeric: 'tabular-nums' }}>
-                            {request.requestedFrom} - {request.requestedUntil}
-                          </Typography>
-                          <Chip
-                            label={request.requestType === 'ONE_TIME' ? t('One time') : t('Recurring')}
-                            size="small"
-                            variant="outlined"
-                            sx={{ height: 20, fontSize: '0.75rem' }}
-                          />
-                        </Stack>
-                      </Stack>
-                    </Paper>
-                  );
-                })}
-              </Stack>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Right Workspace (Detailed View) */}
-        <Box sx={{ flex: 1, minWidth: 0, width: '100%' }}>
-          {selectedRequest.isFetching && (
-            <CircularProgress size={24} aria-label="Refreshing request" sx={{ mb: 1 }} />
-          )}
-
-          {currentRequest ? (
-            <Stack spacing={2.5}>
-              {/* Request Summary Overview Card */}
-              <Card
-                variant="outlined"
-                sx={{ borderRadius: 3, borderColor: 'divider', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}
-              >
-                <CardContent sx={{ p: { xs: 2, sm: 2.5 } }}>
-                  <Stack spacing={1.5}>
-                    <Stack
-                      direction={{ xs: 'column', sm: 'row' }}
-                      spacing={1.5}
-                      sx={{ justifyContent: 'space-between', alignItems: { sm: 'center' }, flexWrap: 'wrap' }}
-                    >
-                      <Box sx={{ minWidth: 0 }}>
-                        <Typography variant="h5" sx={{ fontWeight: 800, color: 'text.primary' }}>
-                          {currentRequest.description}
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.25 }}>
-                          Desired window: {currentRequest.requestedFrom} – {currentRequest.requestedUntil} ·{' '}
-                          {currentRequest.timezone} · {currentRequest.windowStart}–{currentRequest.windowEnd}
-                        </Typography>
-                      </Box>
-                      <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-                        <Chip
-                          label={currentRequest.status.replaceAll('_', ' ')}
-                          color={currentRequest.status === 'ASSIGNED' ? 'success' : 'default'}
-                          sx={{ fontWeight: 700 }}
-                        />
-                        <Chip
-                          label={currentRequest.requestType === 'ONE_TIME' ? 'One time' : 'Recurring'}
-                          variant="outlined"
-                        />
-                      </Stack>
-                    </Stack>
-
-                    {currentRequest.requestType === 'RECURRING' && (
-                      <Typography variant="body2" sx={{ mt: 0.5, color: 'text.secondary' }}>
-                        Cadence: every {currentRequest.recurrenceInterval} {currentRequest.recurrenceUnit?.toLowerCase()}
-                        {currentRequest.occurrenceCount ? ` · ${currentRequest.occurrenceCount} occurrences` : ''}
-                        {currentRequest.recurrenceEndDate ? ` · through ${currentRequest.recurrenceEndDate}` : ''}
-                        {' · quote amount is per occurrence'}
-                      </Typography>
-                    )}
-                  </Stack>
-                </CardContent>
-              </Card>
-
-              {/* Lifecycle Progress Stepper */}
-              <ContractLifecycleStepper status={currentRequest.status} />
-
-              {/* Chat Panel */}
-              <RequestChatPanel
-                request={currentRequest}
-                onChanged={refreshSelectedRequest}
-                onError={setError}
-              />
-
-              {/* Quotes Panel */}
-              <RequestQuotePanel
-                request={currentRequest}
-                customer={isCustomer}
-                manager={isManager}
-                onChanged={refreshSelectedRequest}
-                onError={setError}
-              />
-
-              {/* Signed Contract Panel */}
-              {(isCustomer || isManager) && (
-                <SignedContractPanel
-                  request={currentRequest}
-                  manager={isManager}
-                  onChanged={refreshSelectedRequest}
-                  onError={setError}
-                />
-              )}
-
-              {/* Occurrences Panel */}
-              <OccurrencesPanel
-                request={currentRequest}
-                manager={isManager}
-                onChanged={refreshSelectedRequest}
-                onError={setError}
-              />
-            </Stack>
-          ) : (
-            <Paper
-              variant="outlined"
+          {/* Main DataTable (Phong cách Organization inspections) */}
+          <Paper
+            variant="outlined"
+            sx={{
+              borderRadius: 2.5,
+              borderColor: 'divider',
+              overflow: 'hidden',
+              bgcolor: 'background.paper',
+            }}
+          >
+            <Box
               sx={{
-                p: 6,
-                textAlign: 'center',
-                borderRadius: 3,
+                p: 2,
+                px: 2.5,
+                borderBottom: 1,
                 borderColor: 'divider',
-                color: 'text.secondary',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
               }}
             >
-              <DescriptionOutlinedIcon sx={{ fontSize: 56, opacity: 0.3, mb: 1.5 }} />
-              <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                Chọn một yêu cầu dịch vụ từ danh sách bên trái
+              <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+                {t('Service requests')}
               </Typography>
-              <Typography variant="body2" sx={{ maxWidth: 420, mx: 'auto', mt: 0.5 }}>
-                Xem chi tiết các điều khoản thương mại, trao đổi đàm phán với đối tác, tải hợp đồng scan và phân công các đợt bay kiểm định.
+              <Typography variant="caption" color="text.secondary">
+                {filteredRequests.length} {t('total record(s)')}
               </Typography>
-            </Paper>
-          )}
-        </Box>
-      </Stack>
-    </Stack>
-  );
-}
+            </Box>
 
-function CreateRequestForm({
-  assets,
-  onCreated,
-  onError,
-}: {
-  assets: { id: string; name: string; code: string }[];
-  onCreated: (requestId: string) => void;
-  onError: (message: string) => void;
-}) {
-  const create = useCreateServiceRequest();
-  const [assetId, setAssetId] = useState('');
-  const [description, setDescription] = useState('');
-  const [from, setFrom] = useState(plusDays(1));
-  const [until, setUntil] = useState(plusDays(14));
-  const [requestType, setRequestType] = useState<'ONE_TIME' | 'RECURRING'>('ONE_TIME');
-  const [unit, setUnit] = useState('MONTH');
-  const [interval, setInterval] = useState('1');
-  const [recurrenceLimit, setRecurrenceLimit] = useState<'COUNT' | 'END_DATE'>('COUNT');
-  const [count, setCount] = useState('4');
-  const [recurrenceEndDate, setRecurrenceEndDate] = useState(plusDays(90));
-  const timezone = useMemo(() => Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Ho_Chi_Minh', []);
+            {filteredRequests.length === 0 ? (
+              <Box sx={{ p: 6, textAlign: 'center', color: 'text.secondary' }}>
+                <DescriptionOutlinedIcon sx={{ fontSize: 48, opacity: 0.25, mb: 1 }} />
+                <Typography variant="body1" sx={{ fontWeight: 650 }}>
+                  {t('No records found')}
+                </Typography>
+                <Typography variant="body2" sx={{ maxWidth: 400, mx: 'auto', mt: 0.5 }}>
+                  {search || statusFilter !== 'ALL'
+                    ? t('Try adjusting search keywords or clearing status filter.')
+                    : t('Click "+ New service request" above to create your first inspection request.')}
+                </Typography>
+              </Box>
+            ) : (
+              <TableContainer>
+                <Table sx={{ minWidth: 700 }}>
+                  <TableHead>
+                    <TableRow sx={{ bgcolor: 'action.hover' }}>
+                      <TableCell sx={{ fontWeight: 750, fontSize: '0.75rem', textTransform: 'uppercase' }}>
+                        {t('Objective & Asset')}
+                      </TableCell>
+                      <TableCell sx={{ fontWeight: 750, fontSize: '0.75rem', textTransform: 'uppercase' }}>
+                        {t('Service type')}
+                      </TableCell>
+                      <TableCell sx={{ fontWeight: 750, fontSize: '0.75rem', textTransform: 'uppercase' }}>
+                        {t('Requested window')}
+                      </TableCell>
+                      <TableCell sx={{ fontWeight: 750, fontSize: '0.75rem', textTransform: 'uppercase' }}>
+                        {t('Status')}
+                      </TableCell>
+                      <TableCell sx={{ fontWeight: 750, fontSize: '0.75rem', textTransform: 'uppercase' }}>
+                        {t('Created date')}
+                      </TableCell>
+                      <TableCell align="right" sx={{ fontWeight: 750, fontSize: '0.75rem', textTransform: 'uppercase' }}>
+                        {t('Action')}
+                      </TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {filteredRequests.map((req) => {
+                      const statusInfo = getStatusChipColor(req.status);
 
-  const submit = async () => {
-    if (!assetId || !description.trim()) {
-      onError('Select an asset and describe the requested inspection.');
-      return;
-    }
-    if (until < from) {
-      onError('The requested end date must be on or after the start date.');
-      return;
-    }
-    const recurrenceInterval = Number(interval);
-    const occurrenceCount = Number(count);
-    if (
-      requestType === 'RECURRING' &&
-      (!Number.isInteger(recurrenceInterval) ||
-        recurrenceInterval < 1 ||
-        recurrenceInterval > 52 ||
-        (recurrenceLimit === 'COUNT' && (!Number.isInteger(occurrenceCount) || occurrenceCount < 1 || occurrenceCount > 100)) ||
-        (recurrenceLimit === 'END_DATE' && (recurrenceEndDate < from || recurrenceEndDate > until)))
-    ) {
-      onError('Enter a valid recurrence interval and a count or end date within the requested range.');
-      return;
-    }
-    const input: CreateServiceRequestInput = {
-      assetId,
-      description: description.trim(),
-      requestedFrom: from,
-      requestedUntil: until,
-      timezone,
-      requestType,
-      ...(requestType === 'RECURRING'
-        ? {
-            recurrenceUnit: unit,
-            recurrenceInterval,
-            ...(recurrenceLimit === 'COUNT' ? { occurrenceCount } : { recurrenceEndDate }),
-          }
-        : {}),
-    };
-    try {
-      const request = await create.mutateAsync(input);
-      onCreated(request.id);
-      setDescription('');
-    } catch (error) {
-      onError(errorText(error));
-    }
-  };
+                      return (
+                        <TableRow
+                          key={req.id}
+                          hover
+                          onClick={() => setSelectedRequestId(req.id)}
+                          sx={{ cursor: 'pointer' }}
+                        >
+                          <TableCell sx={{ py: 2 }}>
+                            <Typography variant="body2" sx={{ fontWeight: 750, color: 'text.primary', lineHeight: 1.3 }}>
+                              {req.description}
+                            </Typography>
+                          </TableCell>
 
-  return (
-    <Stack spacing={1.25}>
-      <FormControl fullWidth size="small">
-        <InputLabel id="mf2-asset-label">Asset</InputLabel>
-        <Select
-          labelId="mf2-asset-label"
-          label="Asset"
-          value={assetId}
-          onChange={(event) => setAssetId(event.target.value)}
-        >
-          {assets.map((asset) => (
-            <MenuItem key={asset.id} value={asset.id}>
-              {asset.code} — {asset.name}
-            </MenuItem>
-          ))}
-        </Select>
-      </FormControl>
-      <TextField
-        label="Inspection scope"
-        multiline
-        minRows={2}
-        size="small"
-        value={description}
-        onChange={(event) => setDescription(event.target.value)}
-      />
-      <TextField
-        label="Desired from"
-        type="date"
-        size="small"
-        value={from}
-        onChange={(event) => setFrom(event.target.value)}
-        slotProps={{ inputLabel: { shrink: true } }}
-      />
-      <TextField
-        label="Desired until"
-        type="date"
-        size="small"
-        value={until}
-        onChange={(event) => setUntil(event.target.value)}
-        slotProps={{ inputLabel: { shrink: true } }}
-      />
-      <FormControl fullWidth size="small">
-        <InputLabel id="mf2-type-label">Request type</InputLabel>
-        <Select
-          labelId="mf2-type-label"
-          label="Request type"
-          value={requestType}
-          onChange={(event) => setRequestType(event.target.value as 'ONE_TIME' | 'RECURRING')}
-        >
-          <MenuItem value="ONE_TIME">One time</MenuItem>
-          <MenuItem value="RECURRING">Recurring</MenuItem>
-        </Select>
-      </FormControl>
-      {requestType === 'RECURRING' && (
-        <>
-          <FormControl fullWidth size="small">
-            <InputLabel id="mf2-unit-label">Cadence</InputLabel>
-            <Select
-              labelId="mf2-unit-label"
-              label="Cadence"
-              value={unit}
-              onChange={(event) => setUnit(event.target.value)}
-            >
-              <MenuItem value="DAY">Every day</MenuItem>
-              <MenuItem value="WEEK">Every week</MenuItem>
-              <MenuItem value="MONTH">Every month</MenuItem>
-            </Select>
-          </FormControl>
-          <TextField
-            label="Cadence interval"
-            type="number"
-            size="small"
-            value={interval}
-            onChange={(event) => setInterval(event.target.value)}
-            slotProps={{ htmlInput: { min: 1, max: 52 } }}
-          />
-          <FormControl fullWidth size="small">
-            <InputLabel id="mf2-recurrence-limit-label">Recurrence bound</InputLabel>
-            <Select
-              labelId="mf2-recurrence-limit-label"
-              label="Recurrence bound"
-              value={recurrenceLimit}
-              onChange={(event) => setRecurrenceLimit(event.target.value as 'COUNT' | 'END_DATE')}
-            >
-              <MenuItem value="COUNT">Number of occurrences</MenuItem>
-              <MenuItem value="END_DATE">End date</MenuItem>
-            </Select>
-          </FormControl>
-          {recurrenceLimit === 'COUNT' ? (
-            <TextField
-              label="Number of occurrences"
-              type="number"
-              size="small"
-              value={count}
-              onChange={(event) => setCount(event.target.value)}
-              slotProps={{ htmlInput: { min: 1, max: 100 } }}
-            />
-          ) : (
-            <TextField
-              label="Recurrence end date"
-              type="date"
-              size="small"
-              value={recurrenceEndDate}
-              onChange={(event) => setRecurrenceEndDate(event.target.value)}
-              slotProps={{ inputLabel: { shrink: true }, htmlInput: { min: from, max: until } }}
-            />
-          )}
-        </>
+                          <TableCell>
+                            <Chip
+                              label={req.requestType === 'ONE_TIME' ? t('One-time') : t('Recurring')}
+                              size="small"
+                              variant="outlined"
+                              sx={{ fontWeight: 600, fontSize: '0.72rem' }}
+                            />
+                          </TableCell>
+
+                          <TableCell>
+                            <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                              {req.requestedFrom} – {req.requestedUntil}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              {req.timezone} · ({req.windowStart || '08:00'}–{req.windowEnd || '17:00'})
+                            </Typography>
+                          </TableCell>
+
+                          <TableCell>
+                            <Chip
+                              icon={
+                                <Box
+                                  sx={{
+                                    width: 6,
+                                    height: 6,
+                                    borderRadius: '50%',
+                                    bgcolor: statusInfo.dotColor,
+                                    ml: 1,
+                                    mr: -0.5,
+                                  }}
+                                />
+                              }
+                              label={req.status.replaceAll('_', ' ')}
+                              size="small"
+                              color={statusInfo.color}
+                              variant="outlined"
+                              sx={{
+                                fontWeight: 700,
+                                fontSize: '0.72rem',
+                                border: '1px solid',
+                                bgcolor: (theme) =>
+                                  theme.palette.mode === 'dark' ? 'action.hover' : '#ffffff',
+                              }}
+                            />
+                          </TableCell>
+
+                          <TableCell>
+                            <Typography variant="body2" color="text.secondary">
+                              {new Date(req.createdAt).toLocaleDateString([], {
+                                year: 'numeric',
+                                month: 'short',
+                                day: 'numeric',
+                              })}
+                            </Typography>
+                          </TableCell>
+
+                          <TableCell align="right" onClick={(e) => e.stopPropagation()}>
+                            <Button
+                              variant="outlined"
+                              size="small"
+                              endIcon={<ArrowForwardRoundedIcon />}
+                              onClick={() => setSelectedRequestId(req.id)}
+                              sx={{
+                                borderRadius: 1.5,
+                                textTransform: 'none',
+                                fontWeight: 650,
+                                fontSize: '0.78rem',
+                              }}
+                            >
+                              Track progress
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            )}
+          </Paper>
+        </Stack>
       )}
-      <LoadingButton loading={create.isPending} variant="contained" onClick={() => void submit()}>
-        Submit request
-      </LoadingButton>
-    </Stack>
+
+      {/* DIALOG: TẠO SERVICE REQUEST MỚI (CHO CUSTOMER) */}
+      <CreateRequestDialog
+        open={createDialogOpen}
+        onClose={() => setCreateDialogOpen(false)}
+        assets={assets.data?.items ?? []}
+        onCreated={(id) => {
+          setCreateDialogOpen(false);
+          setSelectedRequestId(id);
+          refreshSelectedRequest();
+        }}
+        onError={setError}
+      />
+
+      {/* BONG BÓNG CHAT TỔNG ĐÀM PHÁN (FLOATING NEGOTIATION CHAT WIDGET) */}
+      {/* Cho phép nhiều Manager và Customer cùng trao đổi realtime qua từng request */}
+      <FloatingNegotiationChat
+        requests={requestItems}
+        activeRequestId={selectedRequestId}
+        onSelectRequest={(id) => setSelectedRequestId(id)}
+        onError={setError}
+      />
+    </Box>
   );
 }

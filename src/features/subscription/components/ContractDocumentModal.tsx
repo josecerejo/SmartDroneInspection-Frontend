@@ -130,7 +130,7 @@ export default function ContractDocumentModal({
               variant="overline"
               sx={{ letterSpacing: '0.15em', fontWeight: 800, color: '#0A968A', fontSize: '0.85rem' }}
             >
-              SMARTDRONEINSPECTION INFRASTRUCTURE PLATFORM
+              SDI INFRASTRUCTURE PLATFORM
             </Typography>
             <Typography variant="h5" sx={{ fontWeight: 900, textTransform: 'uppercase', mt: 1, letterSpacing: '0.02em' }}>
               ENTERPRISE SUBSCRIPTION ORDER SUMMARY
@@ -159,7 +159,7 @@ export default function ContractDocumentModal({
                     BÊN A (BÊN CUNG CẤP DỊCH VỤ / PLATFORM PROVIDER):
                   </Typography>
                   <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                    Smart Drone Inspection Platform Inc.
+                    SDI Platform Inc.
                   </Typography>
                   <Typography variant="caption" sx={{ display: 'block', color: '#475467', mt: 0.5 }}>
                     <strong>Đại diện pháp luật:</strong> Platform Executive Administration

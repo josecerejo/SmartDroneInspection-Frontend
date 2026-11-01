@@ -46,7 +46,6 @@ const DashboardPage = lazy(
 );
 const AssetsPage = lazy(() => import('@/features/assets/pages/AssetsPage'));
 const AssetCatalogPage = lazy(() => import('@/features/assets/pages/AssetCatalogPage'));
-const AssetReviewPage = lazy(() => import('@/features/assets/pages/AssetReviewPage'));
 const InspectorDroneRegistrationPage = lazy(
   () => import('@/features/assets/pages/InspectorDroneRegistrationPage'),
 );
@@ -94,12 +93,6 @@ const PlatformSubscriptionsPage = lazy(
 const ClientSubscriptionPage = lazy(
   () => import('@/features/subscription/pages/ClientSubscriptionPage'),
 );
-const PlatformDroneLeasingPage = lazy(
-  () => import('@/features/assets/pages/PlatformDroneLeasingPage'),
-);
-const ClientDroneLeasingPage = lazy(
-  () => import('@/features/assets/pages/ClientDroneLeasingPage'),
-);
 const PlatformUsersPage = lazy(
   () => import('@/features/admin/pages/PlatformUsersPage'),
 );
@@ -122,27 +115,16 @@ function SubscriptionsSectionRoute() {
   );
 }
 
-function DroneLeasingSectionRoute() {
-  const location = useLocation();
-  return location.pathname.startsWith('/admin') ? (
-    <PlatformDroneLeasingPage />
-  ) : (
-    <ClientDroneLeasingPage />
-  );
-}
-
 const SECTION_ELEMENTS: Record<SectionId, ReactNode> = {
   dashboard: <DashboardPage />,
   contracts: <ContractsPage />,
   assets: <AssetsPage />,
   'asset-catalog': <AssetCatalogPage />,
-  'asset-review': <AssetReviewPage />,
   inspections: <InspectionsPage />,
   reports: <ReportsPage />,
   maintenance: <MaintenancePage />,
   workforce: <WorkforcePage />,
   subscriptions: <SubscriptionsSectionRoute />,
-  'drone-leasing': <DroneLeasingSectionRoute />,
   'platform-users': <PlatformUsersPage />,
   'finance-settings': <PlatformFinanceSettingsPage />,
   'onboarding-reviews': <Mf1ReviewPage />,

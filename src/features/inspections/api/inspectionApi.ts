@@ -402,12 +402,6 @@ export const inspectionApi = {
       .get<InspectionPage>('/inspections/with-reports', { params: filters })
       .then((response) => response.data),
 
-  /** The assigned Inspector's own field sessions for this inspection. */
-  listFieldSessions: (inspectionId: string) =>
-    api
-      .get<FieldSession[]>(`/inspections/${inspectionId}/field-sessions`)
-      .then((response) => response.data),
-
   uploadFlightPermit: (inspectionId: string, file: File) => {
     const form = new FormData();
     form.append('file', file);
@@ -648,13 +642,6 @@ export const inspectionApi = {
     api
       .get<InspectionReport[]>(
         `/inspections/${inspectionId}/report/versions`,
-      )
-      .then((response) => response.data),
-
-  getVersion: (inspectionId: string, versionId: string) =>
-    api
-      .get<InspectionReport>(
-        `/inspections/${inspectionId}/report/versions/${versionId}`,
       )
       .then((response) => response.data),
 

@@ -1,8 +1,10 @@
+import { useMemo } from 'react';
 import {
   useMutation,
   useQuery,
   useQueryClient,
 } from '@tanstack/react-query';
+import { useAuthStore } from '@/features/auth/store/authStore';
 import { useToastStore } from '@/shared/ui/Toast';
 import {
   contractApi,
@@ -13,33 +15,43 @@ import {
   type ServiceRequest,
 } from '../api/contractApi';
 
-export function useServiceRequests(enabled = true) {
+export function useServiceRequests(enabled = true, realtime = true) {
   return useQuery({
     queryKey: contractQueryKeys.requests(),
     queryFn: contractApi.listRequests,
     enabled,
+    refetchInterval: realtime ? 3000 : false,
+    refetchIntervalInBackground: false,
   });
 }
 
-export function useServiceRequest(requestId: string | undefined) {
+export function useServiceRequest(requestId: string | undefined, realtime = true) {
   return useQuery({
     queryKey: contractQueryKeys.request(requestId ?? ''),
     queryFn: () => contractApi.getRequest(requestId as string),
     enabled: Boolean(requestId),
+    refetchInterval: realtime ? 2500 : false,
+    refetchIntervalInBackground: false,
   });
 }
 
 function useContractMutation<TInput, TOutput = ServiceRequest>(
   mutationFn: (input: TInput) => Promise<TOutput>,
-  successMessage: string,
+  successMessage?: string,
+  requestId?: string,
 ) {
   const queryClient = useQueryClient();
   const showToast = useToastStore((state) => state.showToast);
   return useMutation({
     mutationFn,
     onSuccess: async () => {
+      if (requestId) {
+        await queryClient.invalidateQueries({ queryKey: contractQueryKeys.request(requestId) });
+      }
       await queryClient.invalidateQueries({ queryKey: contractQueryKeys.requests() });
-      showToast(successMessage, 'success');
+      if (successMessage) {
+        showToast(successMessage, 'success');
+      }
     },
   });
 }
@@ -54,7 +66,8 @@ export function useCreateServiceRequest() {
 export function usePostRequestMessage(requestId: string) {
   return useContractMutation<string>(
     (body) => contractApi.postMessage(requestId, body),
-    'Message sent.',
+    undefined,
+    requestId,
   );
 }
 
@@ -126,4 +139,71 @@ export function useRegisterPartnerDrone() {
     onSuccess: async () =>
       queryClient.invalidateQueries({ queryKey: [...contractQueryKeys.partners(), 'drones'] }),
   });
+}
+
+export interface UnreadChatNotification {
+  requestId: string;
+  requestDescription: string;
+  unreadCount: number;
+  latestMessageBody: string;
+  latestMessageAuthor: string;
+  latestMessageTime: string;
+}
+
+export function useUnreadChatSummary() {
+  const currentUser = useAuthStore((state) => state.user);
+  const status = useAuthStore((state) => state.status);
+  const isAuth = status === 'authenticated' && Boolean(currentUser);
+  const { data: requests = [] } = useServiceRequests(isAuth);
+
+  return useMemo(() => {
+    if (!isAuth || !currentUser) {
+      return { totalUnread: 0, items: [] as UnreadChatNotification[] };
+    }
+    try {
+      const saved = localStorage.getItem(`sdi_chat_read_${currentUser.id}`);
+      const lastReadMap: Record<string, string> = saved ? JSON.parse(saved) : {};
+
+      const items: UnreadChatNotification[] = [];
+      let totalUnread = 0;
+
+      requests.forEach((req) => {
+        const lastRead = lastReadMap[req.id];
+        const incomingMessages = req.messages.filter((m) => m.authorUserId !== currentUser.id);
+        if (incomingMessages.length === 0) return;
+
+        let unreadForThis = 0;
+        if (!lastRead) {
+          unreadForThis = incomingMessages.length;
+        } else {
+          const lastReadTime = new Date(lastRead).getTime();
+          unreadForThis = incomingMessages.filter(
+            (m) => new Date(m.createdAt).getTime() > lastReadTime,
+          ).length;
+        }
+
+        const latestMsg = req.messages[req.messages.length - 1];
+        if (latestMsg && latestMsg.authorUserId === currentUser.id) {
+          unreadForThis = 0;
+        }
+
+        if (unreadForThis > 0) {
+          totalUnread += unreadForThis;
+          const latestIncoming = incomingMessages[incomingMessages.length - 1];
+          items.push({
+            requestId: req.id,
+            requestDescription: req.description || 'Service request',
+            unreadCount: unreadForThis,
+            latestMessageBody: latestIncoming?.body || '',
+            latestMessageAuthor: latestIncoming?.authorName || 'Partner',
+            latestMessageTime: latestIncoming?.createdAt || '',
+          });
+        }
+      });
+
+      return { totalUnread, items };
+    } catch {
+      return { totalUnread: 0, items: [] as UnreadChatNotification[] };
+    }
+  }, [requests, currentUser, isAuth]);
 }
