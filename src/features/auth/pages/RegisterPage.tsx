@@ -13,7 +13,6 @@ import {
   IconButton,
   InputAdornment,
   Link,
-  MenuItem,
   Stack,
   TextField,
   Typography,
@@ -24,11 +23,9 @@ import { useForm } from 'react-hook-form';
 import { AuthPageLayout } from '../components/AuthPageLayout';
 import { AuthLoadingScreen } from '../components/AuthSessionBootstrapper';
 import {
-  evaluateAirspace,
   getAuthErrorMessage,
   registerOrganization,
   sendRegistrationOtp,
-  type AirspaceEvaluationResponse,
 } from '../api/authApi';
 import {
   organizationRegistrationSchema,
@@ -37,7 +34,6 @@ import {
 import { getAuthRedirectTarget } from '../utils/authRedirect';
 import { useAuthStore } from '../store/authStore';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
-import { api } from '@/shared/api/client';
 
 const authInputSx = {
   '& .MuiOutlinedInput-root': {
@@ -89,13 +85,7 @@ export default function RegisterPage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [agreed, setAgreed] = useState(true);
-  const [latitude, setLatitude] = useState<number | null>(null);
-  const [longitude, setLongitude] = useState<number | null>(null);
-  const [airspace, setAirspace] = useState<AirspaceEvaluationResponse | null>(null);
-  const [evaluatingAirspace, setEvaluatingAirspace] = useState(false);
   const [registrationMessage, setRegistrationMessage] = useState<string | null>(null);
-  const [categories, setCategories] = useState<Array<{ id: string; name: string; active: boolean }>>([]);
-  const [categoryError, setCategoryError] = useState<string | null>(null);
 
   const [phoneNumber, setPhoneNumber] = useState('');
   const [otpDialogOpen, setOtpDialogOpen] = useState(false);
@@ -123,43 +113,8 @@ export default function RegisterPage() {
       email: '',
       password: '',
       confirmPassword: '',
-      firstAsset: {
-        code: '',
-        name: '',
-        categoryId: '',
-        locationText: '',
-        latitude: 0,
-        longitude: 0,
-      },
     },
   });
-
-  useEffect(() => {
-    let active = true;
-    void api.get<Array<{ id: string; name: string; active: boolean }>>('/asset-categories')
-      .then(({ data }) => { if (active) setCategories(data); })
-      .catch(() => { if (active) setCategoryError('Asset categories could not be loaded. Please try again later.'); });
-    return () => { active = false; };
-  }, []);
-
-  useEffect(() => {
-    if (
-      latitude === null || longitude === null ||
-      latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180
-    ) {
-      setAirspace(null);
-      return;
-    }
-
-    const timer = window.setTimeout(() => {
-      setEvaluatingAirspace(true);
-      void evaluateAirspace(latitude, longitude)
-        .then(setAirspace)
-        .catch(() => setAirspace(null))
-        .finally(() => setEvaluatingAirspace(false));
-    }, 500);
-    return () => window.clearTimeout(timer);
-  }, [latitude, longitude]);
 
   if (status === 'checking') {
     return <AuthLoadingScreen />;
@@ -173,14 +128,6 @@ export default function RegisterPage() {
   const onSubmit = async (values: OrganizationRegistrationFormValues) => {
     setErrorMessage(null);
     setRegistrationMessage(null);
-    if (evaluatingAirspace) {
-      setErrorMessage('Wait for the airspace advisory check to finish before submitting.');
-      return;
-    }
-    if (airspace?.classification === 'NO_FLY_ZONE') {
-      setErrorMessage(airspace.advisoryMessage);
-      return;
-    }
 
     setSendingOtp(true);
     setPendingFormValues(values);
@@ -291,7 +238,6 @@ export default function RegisterPage() {
         spacing={2}
         noValidate
         onSubmit={form.handleSubmit(onSubmit)}
-        sx={{ opacity: categoryError ? 0.75 : 1 }}
       >
         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 1.5 }}>
           <TextField
@@ -347,95 +293,6 @@ export default function RegisterPage() {
           fullWidth
           sx={authInputSx}
         />
-
-        <Typography variant="subtitle2">{t('First asset')}</Typography>
-        {categoryError && <Alert severity="error">{t(categoryError)}</Alert>}
-        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 1.5 }}>
-          <TextField
-            {...form.register('firstAsset.code')}
-            label={t('Asset code')}
-            fullWidth
-            error={Boolean(form.formState.errors.firstAsset?.code)}
-            helperText={form.formState.errors.firstAsset?.code?.message}
-            sx={authInputSx}
-          />
-          <TextField
-            {...form.register('firstAsset.name')}
-            label={t('Asset name')}
-            fullWidth
-            error={Boolean(form.formState.errors.firstAsset?.name)}
-            helperText={form.formState.errors.firstAsset?.name?.message}
-            sx={authInputSx}
-          />
-          <TextField
-            select
-            {...form.register('firstAsset.categoryId')}
-            value={form.watch('firstAsset.categoryId') ?? ''}
-            label={t('Asset category')}
-            fullWidth
-            error={Boolean(form.formState.errors.firstAsset?.categoryId)}
-            helperText={form.formState.errors.firstAsset?.categoryId?.message}
-            sx={authInputSx}
-          >
-            {categories
-              .filter((category) => category.active)
-              .map((category) => (
-                <MenuItem key={category.id} value={category.id}>
-                  {category.name}
-                </MenuItem>
-              ))}
-          </TextField>
-          <TextField
-            {...form.register('firstAsset.locationText')}
-            label={t('Location description')}
-            fullWidth
-            error={Boolean(form.formState.errors.firstAsset?.locationText)}
-            helperText={form.formState.errors.firstAsset?.locationText?.message}
-            sx={authInputSx}
-          />
-          <TextField
-            {...form.register('firstAsset.latitude', {
-              valueAsNumber: true,
-              onChange: (event) => setLatitude(event.target.value === '' ? null : Number(event.target.value)),
-            })}
-            label={t('Latitude')}
-            type="number"
-            slotProps={{ htmlInput: { step: 'any' } }}
-            fullWidth
-            error={Boolean(form.formState.errors.firstAsset?.latitude)}
-            helperText={form.formState.errors.firstAsset?.latitude?.message}
-            sx={authInputSx}
-          />
-          <TextField
-            {...form.register('firstAsset.longitude', {
-              valueAsNumber: true,
-              onChange: (event) => setLongitude(event.target.value === '' ? null : Number(event.target.value)),
-            })}
-            label={t('Longitude')}
-            type="number"
-            slotProps={{ htmlInput: { step: 'any' } }}
-            fullWidth
-            error={Boolean(form.formState.errors.firstAsset?.longitude)}
-            helperText={form.formState.errors.firstAsset?.longitude?.message}
-            sx={authInputSx}
-          />
-        </Box>
-        {(evaluatingAirspace || airspace) && (
-          <Alert
-            severity={
-              airspace?.classification === 'NO_FLY_ZONE'
-                ? 'error'
-                : airspace?.classification === 'RESTRICTED_ZONE' ||
-                    airspace?.classification === 'UNKNOWN'
-                  ? 'warning'
-                  : 'info'
-            }
-          >
-            {evaluatingAirspace
-              ? t('Checking airspace advisory…')
-              : airspace?.advisoryMessage}
-          </Alert>
-        )}
 
         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 1.5 }}>
           <TextField

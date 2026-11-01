@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
   Alert,
+  Avatar,
   Box,
   Button,
   Chip,
@@ -20,9 +21,17 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
+import CloudUploadOutlined from '@mui/icons-material/CloudUploadOutlined';
 import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
-import { getAuthErrorMessage, changePassword, logoutAllSessions, updateVisionFallbackPreference, updatePilotLicense } from '../api/authApi';
+import {
+  getAuthErrorMessage,
+  changePassword,
+  logoutAllSessions,
+  updateVisionFallbackPreference,
+  updatePilotLicense,
+  updateAvatar,
+} from '../api/authApi';
 import {
   passwordChangeSchema,
   type PasswordChangeFormValues,
@@ -49,6 +58,40 @@ export default function AccountSecurityPage() {
   const [licensePending, setLicensePending] = useState(false);
   const [licenseError, setLicenseError] = useState<string | null>(null);
   const [licenseSuccess, setLicenseSuccess] = useState<string | null>(null);
+  const [avatarPending, setAvatarPending] = useState(false);
+  const [avatarError, setAvatarError] = useState<string | null>(null);
+  const [avatarSuccess, setAvatarSuccess] = useState<string | null>(null);
+
+  const onAvatarSelected = async (file: File | undefined) => {
+    if (!file) return;
+    setAvatarError(null);
+    setAvatarSuccess(null);
+    if (!file.type.startsWith('image/')) {
+      setAvatarError(t('Please select an image file.'));
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setAvatarError(t('Image must be 5 MB or smaller.'));
+      return;
+    }
+
+    setAvatarPending(true);
+    try {
+      const avatarUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => typeof reader.result === 'string' ? resolve(reader.result) : reject(new Error('Could not read image.'));
+        reader.onerror = () => reject(new Error('Could not read image.'));
+        reader.readAsDataURL(file);
+      });
+      const updated = await updateAvatar(avatarUrl);
+      useAuthStore.getState().setUser(updated);
+      setAvatarSuccess(t('Profile photo updated successfully.'));
+    } catch (error) {
+      setAvatarError(getAuthErrorMessage(error));
+    } finally {
+      setAvatarPending(false);
+    }
+  };
 
   const form = useForm<PasswordChangeFormValues>({
     resolver: zodResolver(passwordChangeSchema),
@@ -110,17 +153,59 @@ export default function AccountSecurityPage() {
             bgcolor: 'background.paper',
           }}
         >
-          <Stack spacing={1.5}>
+          <Stack spacing={2}>
             <Typography variant="h6" sx={{ fontWeight: 700 }}>
               {t('Signed-in account')}
             </Typography>
-            <Typography sx={{ fontWeight: 600 }}>{user?.fullName}</Typography>
-            <Typography color="text.secondary">{user?.email}</Typography>
-            <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap' }}>
-              {user?.roles.map((role) => (
-                <Chip key={role} label={role.replaceAll('_', ' ')} size="small" />
-              ))}
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2.5} sx={{ alignItems: { sm: 'center' } }}>
+              <Avatar
+                src={user?.avatarUrl ?? undefined}
+                alt={user?.fullName ?? 'User'}
+                sx={{
+                  width: 72,
+                  height: 72,
+                  bgcolor: 'primary.main',
+                  fontSize: 24,
+                  fontWeight: 700,
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+                }}
+              >
+                {user?.fullName?.trim().charAt(0).toUpperCase()}
+              </Avatar>
+              <Stack spacing={0.5} sx={{ flex: 1, minWidth: 0 }}>
+                <Typography sx={{ fontWeight: 600, fontSize: 16 }}>{user?.fullName}</Typography>
+                <Typography color="text.secondary" variant="body2">{user?.email}</Typography>
+                <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', pt: 0.5 }}>
+                  {user?.roles.map((role) => (
+                    <Chip key={role} label={role.replaceAll('_', ' ')} size="small" />
+                  ))}
+                </Stack>
+              </Stack>
+              <Box>
+                <Button
+                  variant="outlined"
+                  component="label"
+                  disabled={avatarPending}
+                  startIcon={<CloudUploadOutlined />}
+                  size="small"
+                  sx={{ textTransform: 'none', fontWeight: 600 }}
+                >
+                  {avatarPending ? t('Updating…') : t('Change photo')}
+                  <input
+                    type="file"
+                    hidden
+                    accept="image/*"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      void onAvatarSelected(file);
+                      e.target.value = '';
+                    }}
+                  />
+                </Button>
+              </Box>
             </Stack>
+            {avatarError && <Alert severity="error">{avatarError}</Alert>}
+            {avatarSuccess && <Alert severity="success">{avatarSuccess}</Alert>}
           </Stack>
         </Box>
 
@@ -203,16 +288,50 @@ export default function AccountSecurityPage() {
               }}
             >
               <Stack spacing={2}>
-                <Box>
-                  <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                    {t('Pilot license self-declaration')}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                    {t('Self-declare your remote pilot license details required to perform drone inspections.')}
-                  </Typography>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 1 }}>
+                  <Box>
+                    <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                      {t('Pilot license self-declaration')}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                      {t('Self-declare your remote pilot license details required to perform drone inspections.')}
+                    </Typography>
+                  </Box>
+                  {user?.pilotLicenseExpiresAt && (() => {
+                    const expiry = new Date(user.pilotLicenseExpiresAt);
+                    const now = new Date();
+                    const diffDays = Math.ceil((expiry.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+                    if (diffDays <= 0) {
+                      return <Chip label={`Bằng lái ĐÃ HẾT HẠN (${expiry.toLocaleDateString('vi-VN')})`} color="error" sx={{ fontWeight: 700 }} />;
+                    }
+                    if (diffDays <= 60) {
+                      return <Chip label={`Bằng lái SẮP HẾT HẠN (còn ${diffDays} ngày)`} color="warning" sx={{ fontWeight: 700 }} />;
+                    }
+                    return <Chip label={`Bằng lái CÒN HIỆU LỰC (còn ${diffDays} ngày)`} color="success" sx={{ fontWeight: 700 }} />;
+                  })()}
                 </Box>
                 {licenseError && <Alert severity="error">{licenseError}</Alert>}
                 {licenseSuccess && <Alert severity="success">{licenseSuccess}</Alert>}
+                {user?.pilotLicenseExpiresAt && (() => {
+                  const expiry = new Date(user.pilotLicenseExpiresAt);
+                  const now = new Date();
+                  const diffDays = Math.ceil((expiry.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+                  if (diffDays <= 0) {
+                    return (
+                      <Alert severity="error" sx={{ borderRadius: 2 }}>
+                        <strong>Cảnh báo an toàn bay:</strong> Bằng lái phi công của bạn đã hết hạn. Hệ thống sẽ tạm khóa điều kiện phân công bay thực địa cho đến khi bạn cập nhật chứng chỉ bay mới.
+                      </Alert>
+                    );
+                  }
+                  if (diffDays <= 60) {
+                    return (
+                      <Alert severity="warning" sx={{ borderRadius: 2 }}>
+                        <strong>Thông báo gia hạn:</strong> Bằng lái phi công của bạn sẽ hết hạn sau {diffDays} ngày nữa ({expiry.toLocaleDateString('vi-VN')}). Vui lòng gia hạn chứng chỉ sớm.
+                      </Alert>
+                    );
+                  }
+                  return null;
+                })()}
                 <TextField
                   label={t('License number')}
                   required

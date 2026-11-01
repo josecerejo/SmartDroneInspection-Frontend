@@ -111,6 +111,7 @@ export function AppShell({ portal }: AppShellProps) {
   const [accountMenuAnchor, setAccountMenuAnchor] = useState<HTMLElement | null>(null);
   const [signingOut, setSigningOut] = useState(false);
   const roles = useAuthStore((state) => state.roles);
+  const user = useAuthStore((state) => state.user);
   const userName = useAuthStore((state) => state.userName);
   const email = useAuthStore((state) => state.email);
   const clearSession = useAuthStore((state) => state.clearSession);
@@ -250,7 +251,7 @@ export function AppShell({ portal }: AppShellProps) {
           onClick={(event) => setAccountMenuAnchor(event.currentTarget)}
           sx={{ minHeight: 52, justifyContent: 'flex-start', gap: 1.25, px: 1, textAlign: 'left' }}
         >
-          <Avatar aria-hidden="true" sx={{ width: 36, height: 36, bgcolor: 'primary.main', fontSize: 13, fontWeight: 650 }}>
+          <Avatar src={user?.avatarUrl ?? undefined} aria-hidden="true" sx={{ width: 36, height: 36, bgcolor: 'primary.main', fontSize: 13, fontWeight: 650 }}>
             {userName?.trim().charAt(0).toUpperCase() ?? <AccountCircleOutlined fontSize="small" />}
           </Avatar>
           <Box sx={{ minWidth: 0, flex: 1 }}>

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
   Alert,
+  Box,
   Button,
   IconButton,
   InputAdornment,
@@ -16,10 +17,12 @@ import { AuthPageLayout } from '../components/AuthPageLayout';
 import { AuthLoadingScreen } from '../components/AuthSessionBootstrapper';
 import {
   completeInitialPasswordSetup,
+  confirmPasswordReset,
   getAuthErrorMessage,
   login,
   loginWithGoogle,
   sendLoginOtp,
+  sendPasswordResetOtp,
   verifyLoginOtp,
 } from '../api/authApi';
 import {
@@ -56,6 +59,15 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
 
+  const [isForgotPassword, setIsForgotPassword] = useState(false);
+  const [resetEmail, setResetEmail] = useState('');
+  const [resetChallenge, setResetChallenge] = useState<string | null>(null);
+  const [resetOtpCode, setResetOtpCode] = useState('');
+  const [resetNewPassword, setResetNewPassword] = useState('');
+  const [resetConfirmPassword, setResetConfirmPassword] = useState('');
+  const [resetPending, setResetPending] = useState(false);
+  const [resetSuccessMessage, setResetSuccessMessage] = useState<string | null>(null);
+
   const loginForm = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
@@ -68,17 +80,9 @@ export default function LoginPage() {
     defaultValues: { currentPassword: '', password: '', confirmPassword: '' },
   });
 
-  if (status === 'checking') {
-    return <AuthLoadingScreen />;
-  }
-
   const from = (location.state as { from?: unknown } | null)?.from;
   const returnTo = getLoginReturnTo(from, searchParams.get('returnTo'));
   const destination = getAuthRedirectTarget(returnTo, roles);
-
-  if (status === 'authenticated') {
-    return <Navigate to={destination} replace />;
-  }
 
   const onLogin = async (values: LoginFormValues) => {
     setErrorMessage(null);
@@ -290,6 +294,275 @@ export default function LoginPage() {
     );
   const passwordChanged = searchParams.get('passwordChanged') === '1';
 
+  const onSendResetOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMessage(null);
+    if (!resetEmail.trim()) {
+      setErrorMessage(t('Please enter your email address.'));
+      return;
+    }
+    setResetPending(true);
+    try {
+      const response = await sendPasswordResetOtp(resetEmail.trim());
+      setResetChallenge(response.challengeToken);
+      setResetOtpCode('');
+      setResetNewPassword('');
+      setResetConfirmPassword('');
+    } catch (error) {
+      setErrorMessage(getAuthErrorMessage(error));
+    } finally {
+      setResetPending(false);
+    }
+  };
+
+  const onConfirmResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMessage(null);
+    if (!resetOtpCode || resetOtpCode.length !== 6) {
+      setErrorMessage(t('Please enter a 6-digit OTP code.'));
+      return;
+    }
+    if (!resetNewPassword || resetNewPassword.length < 15) {
+      setErrorMessage(t('Password must contain between 15 and 128 characters.'));
+      return;
+    }
+    if (resetNewPassword !== resetConfirmPassword) {
+      setErrorMessage(t('Confirm password does not match.'));
+      return;
+    }
+    setResetPending(true);
+    try {
+      await confirmPasswordReset({
+        email: resetEmail.trim(),
+        challengeToken: resetChallenge!,
+        code: resetOtpCode.trim(),
+        newPassword: resetNewPassword,
+      });
+      setIsForgotPassword(false);
+      setResetChallenge(null);
+      setResetSuccessMessage(
+        t('Your password has been reset successfully. Please sign in with your new password.'),
+      );
+      loginForm.setValue('email', resetEmail.trim());
+      loginForm.setValue('password', '');
+    } catch (error) {
+      setErrorMessage(getAuthErrorMessage(error));
+    } finally {
+      setResetPending(false);
+    }
+  };
+
+  if (status === 'checking') {
+    return <AuthLoadingScreen />;
+  }
+
+  if (status === 'authenticated') {
+    return <Navigate to={destination} replace />;
+  }
+
+  const authInputSx = {
+    '& .MuiOutlinedInput-root': {
+      bgcolor: '#F8FBFA',
+      borderRadius: '8px',
+      color: '#173B36',
+      fontSize: '14px',
+      '& fieldset': {
+        borderColor: '#D6E4E0',
+        transition: 'border-color 0.2s ease, box-shadow 0.2s ease',
+      },
+      '&:hover fieldset': {
+        borderColor: '#96BDB5',
+      },
+      '&.Mui-focused fieldset': {
+        borderColor: '#087E8B',
+        borderWidth: '1.5px',
+        boxShadow: '0 0 0 3px rgba(8, 126, 139, 0.13)',
+      },
+    },
+    '& .MuiInputLabel-root': {
+      color: '#5F7872',
+      fontSize: '14px',
+      '&.Mui-focused': {
+        color: '#087E8B',
+      },
+    },
+    '& .MuiInputBase-input': {
+      py: '13.5px',
+      fontSize: '14px',
+      '&::placeholder': {
+        color: '#607972',
+        opacity: 1,
+      },
+    },
+    '& .MuiFormHelperText-root': {
+      color: '#B5473C',
+      fontSize: '12px',
+      mx: 0.5,
+      mt: 0.5,
+    },
+  };
+
+  if (isForgotPassword) {
+    return (
+      <AuthPageLayout
+        eyebrow={t('Account recovery')}
+        title={!resetChallenge ? t('Forgot password') : t('Reset password')}
+        description={
+          !resetChallenge
+            ? t('Enter your account email to receive a 6-digit OTP verification code.')
+            : t('A 6-digit OTP code was sent to your email. Enter the code and your new password below.')
+        }
+        backLabel={t('Back to sign in')}
+        backTo="/login"
+        showSocial={false}
+        heroTagline={{
+          line1: 'Precision View,',
+          line2: 'Intelligent Insights',
+        }}
+      >
+        <Stack
+          component="form"
+          spacing={2.2}
+          noValidate
+          onSubmit={!resetChallenge ? onSendResetOtp : onConfirmResetPassword}
+        >
+          {errorMessage && (
+            <Alert severity="error" role="alert" sx={{ borderRadius: 2 }}>
+              {errorMessage}
+            </Alert>
+          )}
+
+          {!resetChallenge ? (
+            <>
+              <TextField
+                label={t('Email address')}
+                placeholder="name@company.com"
+                type="email"
+                value={resetEmail}
+                onChange={(e) => setResetEmail(e.target.value)}
+                autoComplete="email"
+                autoFocus
+                fullWidth
+                required
+                sx={authInputSx}
+              />
+              <Button
+                type="submit"
+                variant="contained"
+                size="large"
+                disabled={resetPending || !resetEmail.trim()}
+                sx={{
+                  minHeight: 50,
+                  borderRadius: '8px',
+                  bgcolor: '#087E8B',
+                  color: '#FFFFFF',
+                  fontWeight: 600,
+                  boxShadow: '0 5px 16px rgba(8, 126, 139, 0.2)',
+                  '&:hover': {
+                    bgcolor: '#066B70',
+                    boxShadow: '0 7px 20px rgba(8, 126, 139, 0.24)',
+                  },
+                }}
+              >
+                {resetPending ? t('Sending OTP…') : t('Send OTP code')}
+              </Button>
+            </>
+          ) : (
+            <>
+              <Alert severity="info" sx={{ borderRadius: 2 }}>
+                {t('A 6-digit OTP code was sent to:')} <strong>{resetEmail}</strong>
+              </Alert>
+              <TextField
+                label={t('OTP code (6 digits)')}
+                placeholder="123456"
+                value={resetOtpCode}
+                onChange={(e) => setResetOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                slotProps={{ htmlInput: { inputMode: 'numeric', maxLength: 6 } }}
+                fullWidth
+                autoFocus
+                required
+                sx={authInputSx}
+              />
+              <TextField
+                label={t('New password')}
+                placeholder="••••••••••••"
+                type={showNewPassword ? 'text' : 'password'}
+                value={resetNewPassword}
+                onChange={(e) => setResetNewPassword(e.target.value)}
+                autoComplete="new-password"
+                fullWidth
+                required
+                helperText={t('Use 15–128 characters. Avoid common passwords.')}
+                sx={authInputSx}
+                slotProps={{
+                  input: {
+                    endAdornment: (
+                      <InputAdornment position="end">
+                        <IconButton
+                          type="button"
+                          aria-label={showNewPassword ? 'Hide password' : 'Show password'}
+                          onClick={() => setShowNewPassword((v) => !v)}
+                          edge="end"
+                          sx={{ color: '#758984' }}
+                        >
+                          {showNewPassword ? <VisibilityOff /> : <Visibility />}
+                        </IconButton>
+                      </InputAdornment>
+                    ),
+                  },
+                }}
+              />
+              <TextField
+                label={t('Confirm new password')}
+                placeholder="••••••••••••"
+                type={showNewPassword ? 'text' : 'password'}
+                value={resetConfirmPassword}
+                onChange={(e) => setResetConfirmPassword(e.target.value)}
+                autoComplete="new-password"
+                fullWidth
+                required
+                sx={authInputSx}
+              />
+              <Button
+                type="submit"
+                variant="contained"
+                size="large"
+                disabled={resetPending || resetOtpCode.length !== 6 || !resetNewPassword}
+                sx={{
+                  minHeight: 50,
+                  borderRadius: '8px',
+                  bgcolor: '#087E8B',
+                  color: '#FFFFFF',
+                  fontWeight: 600,
+                  boxShadow: '0 5px 16px rgba(8, 126, 139, 0.2)',
+                  '&:hover': {
+                    bgcolor: '#066B70',
+                    boxShadow: '0 7px 20px rgba(8, 126, 139, 0.24)',
+                  },
+                }}
+              >
+                {resetPending ? t('Resetting…') : t('Reset password')}
+              </Button>
+            </>
+          )}
+
+          <Button
+            type="button"
+            color="inherit"
+            onClick={() => {
+              setIsForgotPassword(false);
+              setResetChallenge(null);
+              setErrorMessage(null);
+            }}
+            sx={{ textTransform: 'none', color: '#758984' }}
+          >
+            {t('← Back to sign in')}
+          </Button>
+        </Stack>
+      </AuthPageLayout>
+    );
+  }
+
   if (otpChallenge) {
     return (
       <AuthPageLayout
@@ -471,48 +744,6 @@ export default function LoginPage() {
     );
   }
 
-  const authInputSx = {
-    '& .MuiOutlinedInput-root': {
-      bgcolor: '#F8FBFA',
-      borderRadius: '8px',
-      color: '#173B36',
-      fontSize: '14px',
-      '& fieldset': {
-        borderColor: '#D6E4E0',
-        transition: 'border-color 0.2s ease, box-shadow 0.2s ease',
-      },
-      '&:hover fieldset': {
-        borderColor: '#96BDB5',
-      },
-      '&.Mui-focused fieldset': {
-        borderColor: '#087E8B',
-        borderWidth: '1.5px',
-        boxShadow: '0 0 0 3px rgba(8, 126, 139, 0.13)',
-      },
-    },
-    '& .MuiInputLabel-root': {
-      color: '#5F7872',
-      fontSize: '14px',
-      '&.Mui-focused': {
-        color: '#087E8B',
-      },
-    },
-    '& .MuiInputBase-input': {
-      py: '13.5px',
-      fontSize: '14px',
-      '&::placeholder': {
-        color: '#607972',
-        opacity: 1,
-      },
-    },
-    '& .MuiFormHelperText-root': {
-      color: '#B5473C',
-      fontSize: '12px',
-      mx: 0.5,
-      mt: 0.5,
-    },
-  };
-
   return (
     <AuthPageLayout
       title={t('Welcome back')}
@@ -543,6 +774,11 @@ export default function LoginPage() {
         {passwordChanged && (
           <Alert severity="success" sx={{ borderRadius: 2 }}>
             {t('Your password was changed. Sign in again with the new password.')}
+          </Alert>
+        )}
+        {resetSuccessMessage && (
+          <Alert severity="success" sx={{ borderRadius: 2 }}>
+            {resetSuccessMessage}
           </Alert>
         )}
         <TextField
@@ -585,6 +821,29 @@ export default function LoginPage() {
             },
           }}
         />
+        <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: -1 }}>
+          <Button
+            type="button"
+            variant="text"
+            size="small"
+            onClick={() => {
+              setErrorMessage(null);
+              setResetEmail(loginForm.getValues('email') || '');
+              setIsForgotPassword(true);
+            }}
+            sx={{
+              color: '#087E8B',
+              textTransform: 'none',
+              fontWeight: 600,
+              fontSize: '13px',
+              p: 0,
+              minWidth: 0,
+              '&:hover': { bgcolor: 'transparent', textDecoration: 'underline' },
+            }}
+          >
+            {t('Forgot password?')}
+          </Button>
+        </Box>
         {errorMessage && (
           <Alert severity="error" role="alert" sx={{ borderRadius: 2 }}>
             {errorMessage}

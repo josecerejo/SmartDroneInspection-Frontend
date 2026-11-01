@@ -15,6 +15,7 @@ import {
   Typography,
 } from '@mui/material';
 import PersonAddAlt from '@mui/icons-material/PersonAddAlt';
+import FlightTakeoffRounded from '@mui/icons-material/FlightTakeoffRounded';
 import { DataTable, type DataTableColumn } from '@/shared/ui/DataTable';
 import { EmptyState } from '@/shared/ui/EmptyState';
 import { LoadingButton } from '@/shared/ui/LoadingButton';
@@ -30,6 +31,7 @@ import {
 import type { ActorZone, PlatformUser, PlatformUserRole } from '../api/platformUserApi';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 import { useAuthStore } from '@/features/auth/store/authStore';
+import { InspectorProfileDialog } from '../components/InspectorProfileDialog';
 
 const ZONE_LABELS: Record<string, string> = {
   PLATFORM: 'Platform',
@@ -79,6 +81,9 @@ export default function PlatformUsersPage() {
     temporaryPassword: string;
   } | null>(null);
 
+  const [selectedInspectorId, setSelectedInspectorId] = useState<string | null>(null);
+  const [profileDialogOpen, setProfileDialogOpen] = useState(false);
+
   const items = users.data ?? [];
 
   const columns: DataTableColumn<PlatformUser>[] = [
@@ -116,15 +121,41 @@ export default function PlatformUsersPage() {
         </Stack>
       ),
     },
-    ...(!isManager
-      ? [
-          {
-            id: 'actions',
-            label: '',
-            width: 220,
-            align: 'right' as const,
-            render: (user: PlatformUser) => (
-              <Stack direction="row" spacing={1} sx={{ justifyContent: 'flex-end' }}>
+    {
+      id: 'actions',
+      label: '',
+      width: isManager ? 200 : 360,
+      align: 'right' as const,
+      render: (user: PlatformUser) => {
+        const isInspectorUser =
+          user.roles.includes('INSPECTOR') || user.actorZone === 'INSPECTOR_PARTNER';
+
+        return (
+          <Stack direction="row" spacing={1} sx={{ justifyContent: 'flex-end', alignItems: 'center' }}>
+            {isInspectorUser && (
+              <Button
+                size="small"
+                variant="contained"
+                startIcon={<FlightTakeoffRounded />}
+                onClick={() => {
+                  setSelectedInspectorId(user.id);
+                  setProfileDialogOpen(true);
+                }}
+                sx={{
+                  bgcolor: '#3758F9',
+                  textTransform: 'none',
+                  fontWeight: 600,
+                  fontSize: '12px',
+                  borderRadius: '8px',
+                  boxShadow: 'none',
+                  '&:hover': { bgcolor: '#2b45cb' },
+                }}
+              >
+                {t('Hồ sơ phi công')}
+              </Button>
+            )}
+            {!isManager && (
+              <>
                 <Button
                   size="small"
                   variant="outlined"
@@ -140,11 +171,12 @@ export default function PlatformUsersPage() {
                 >
                   {t('Suspend')}
                 </Button>
-              </Stack>
-            ),
-          },
-        ]
-      : []),
+              </>
+            )}
+          </Stack>
+        );
+      },
+    },
   ];
 
   return (
@@ -422,6 +454,12 @@ export default function PlatformUsersPage() {
           </Button>
         </DialogActions>
       </Dialog>
+
+      <InspectorProfileDialog
+        open={profileDialogOpen}
+        onClose={() => setProfileDialogOpen(false)}
+        inspectorId={selectedInspectorId}
+      />
     </Box>
   );
 }

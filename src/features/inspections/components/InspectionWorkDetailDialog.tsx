@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Alert,
@@ -23,12 +24,14 @@ import TaskAltOutlinedIcon from '@mui/icons-material/TaskAltOutlined';
 import AssignmentOutlinedIcon from '@mui/icons-material/AssignmentOutlined';
 import ArrowForwardRoundedIcon from '@mui/icons-material/ArrowForwardRounded';
 import OpenInNewRoundedIcon from '@mui/icons-material/OpenInNewRounded';
+import MapRounded from '@mui/icons-material/MapRounded';
 import { useInspection } from '../hooks/useInspections';
 import { StatusChip } from '@/shared/ui/StatusChip';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 import { getSectionPath, PORTAL_IDS, type PortalId } from '@/app/permissions/accessPolicy';
 import type { InspectionStatus } from '../api/inspectionApi';
 import { formatLocation } from '@/shared/airspace/airspaceZones';
+import { AirspaceFlightPlannerDialog } from '@/shared/airspace/AirspaceFlightPlannerDialog';
 
 export interface InspectionWorkDetailDialogProps {
   open: boolean;
@@ -48,6 +51,7 @@ export function InspectionWorkDetailDialog({
   const portal = (location.pathname.split('/').filter(Boolean)[0] ?? PORTAL_IDS[0]) as PortalId;
   const inspectionQuery = useInspection(inspectionId, open && Boolean(inspectionId));
   const inspection = inspectionQuery.data;
+  const [surveyMapOpen, setSurveyMapOpen] = useState(false);
 
   const navigateToInspectionRoute = (subpath = '') => {
     onClose();
@@ -289,10 +293,33 @@ export function InspectionWorkDetailDialog({
                 borderColor: '#e2e8f0',
               }}
             >
-              <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#334155', mb: 1.5, display: 'flex', alignItems: 'center', gap: 1 }}>
-                <LocationOnOutlinedIcon fontSize="small" color="primary" />
-                {t('Infrastructure Asset')}
-              </Typography>
+              <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center', mb: 1.5, flexWrap: 'wrap', gap: 1 }}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#334155', display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <LocationOnOutlinedIcon fontSize="small" color="primary" />
+                  {t('Infrastructure Asset')}
+                </Typography>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  startIcon={<MapRounded sx={{ fontSize: 16 }} />}
+                  onClick={() => setSurveyMapOpen(true)}
+                  sx={{
+                    textTransform: 'none',
+                    fontWeight: 600,
+                    fontSize: '0.78rem',
+                    borderRadius: '8px',
+                    borderColor: 'primary.main',
+                    color: 'primary.main',
+                    bgcolor: 'rgba(55, 88, 249, 0.05)',
+                    '&:hover': {
+                      borderColor: 'primary.dark',
+                      bgcolor: 'rgba(55, 88, 249, 0.12)',
+                    },
+                  }}
+                >
+                  {t('🗺️ Xem Bản đồ khảo sát vùng bay & Điểm cất cánh')}
+                </Button>
+              </Stack>
               <Grid container spacing={2}>
                 <Grid size={{ xs: 12, sm: 6 }}>
                   <Typography variant="caption" color="text.secondary">
@@ -435,6 +462,16 @@ export function InspectionWorkDetailDialog({
           {t('Open full inspection workspace')}
         </Button>
       </DialogActions>
+
+      {inspection && (
+        <AirspaceFlightPlannerDialog
+          open={surveyMapOpen}
+          onClose={() => setSurveyMapOpen(false)}
+          assetName={inspection.assetName || 'Công trình kiểm định'}
+          locationText={inspection.locationText}
+          inspectionItems={inspection.inspectionItems ?? []}
+        />
+      )}
     </Dialog>
   );
 }

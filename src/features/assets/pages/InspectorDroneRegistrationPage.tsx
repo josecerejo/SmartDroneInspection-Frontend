@@ -18,6 +18,7 @@ import DeleteOutlineRounded from '@mui/icons-material/DeleteOutlineRounded';
 import CloudUploadOutlined from '@mui/icons-material/CloudUploadOutlined';
 import CheckCircleRounded from '@mui/icons-material/CheckCircleRounded';
 import FlightTakeoffRounded from '@mui/icons-material/FlightTakeoffRounded';
+import RefreshRounded from '@mui/icons-material/RefreshRounded';
 import {
   mf1DroneApi,
   uploadDroneEvidence,
@@ -92,10 +93,12 @@ export default function InspectorDroneRegistrationPage() {
   const applications = useQuery({
     queryKey: ['inspector-drone-applications'],
     queryFn: mf1DroneApi.mine,
+    refetchInterval: 4000,
   });
   const drones = useQuery({
     queryKey: ['inspector-drones'],
     queryFn: mf1DroneApi.drones,
+    refetchInterval: 4000,
   });
 
   const submit = useMutation({
@@ -114,18 +117,27 @@ export default function InspectorDroneRegistrationPage() {
 
       // Ghép thông số kỹ thuật vào trường model để lưu trữ đầy đủ
       const specsParts: string[] = [];
-      if (formData.mtowKg) specsParts.push(`MTOW: ${formData.mtowKg} kg`);
-      if (formData.maxFlightTimeMinutes) specsParts.push(`Thời gian bay: ${formData.maxFlightTimeMinutes}p`);
-      if (formData.cameraSensor) specsParts.push(`Camera/Sensor: ${formData.cameraSensor}`);
-      if (formData.safetyFeatures) specsParts.push(`An toàn: ${formData.safetyFeatures}`);
+      if (formData.mtowKg) {
+        const mtow = formData.mtowKg.toLowerCase().includes('kg') ? formData.mtowKg.trim() : `${formData.mtowKg.trim()} kg`;
+        specsParts.push(`MTOW: ${mtow}`);
+      }
+      if (formData.maxFlightTimeMinutes) {
+        const time = formData.maxFlightTimeMinutes.toLowerCase().includes('phút') || formData.maxFlightTimeMinutes.toLowerCase().includes('p')
+          ? formData.maxFlightTimeMinutes.trim()
+          : `${formData.maxFlightTimeMinutes.trim()} phút`;
+        specsParts.push(`Thời gian bay: ${time}`);
+      }
+      if (formData.cameraSensor) specsParts.push(`Camera/Sensor: ${formData.cameraSensor.trim()}`);
+      if (formData.safetyFeatures) specsParts.push(`An toàn: ${formData.safetyFeatures.trim()}`);
 
       const formattedModel = specsParts.length > 0
         ? `${formData.droneName.trim()} [${specsParts.join(' | ')}]`
         : formData.droneName.trim();
+      const finalModel = formattedModel.length > 1000 ? formattedModel.slice(0, 1000) : formattedModel;
 
       const input: DroneRegistrationInput = {
         serialNumber: formData.serialNumber.trim(),
-        model: formattedModel,
+        model: finalModel,
         manufacturer: formData.manufacturer.trim(),
         registrationNumber: formData.registrationNumber.trim(),
         registrationExpiresAt: new Date(formData.registrationExpiresAt).toISOString(),
@@ -364,13 +376,17 @@ export default function InspectorDroneRegistrationPage() {
                           <IconButton
                             size="small"
                             color="error"
-                            onClick={() => handleRemoveFile(doc.type)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleRemoveFile(doc.type);
+                            }}
                             sx={{
                               position: 'absolute',
                               top: 4,
                               right: 4,
                               bgcolor: 'rgba(255, 255, 255, 0.9)',
                               '&:hover': { bgcolor: '#ffffff' },
+                              zIndex: 15,
                             }}
                           >
                             <DeleteOutlineRounded fontSize="small" />
@@ -388,22 +404,37 @@ export default function InspectorDroneRegistrationPage() {
                       ) : null}
                     </Box>
 
-                    <Button
-                      component="label"
-                      variant={file ? 'outlined' : 'contained'}
-                      color={file ? 'success' : 'primary'}
-                      size="small"
-                      startIcon={<CloudUploadOutlined />}
-                      sx={{ mt: 1, textTransform: 'none', borderRadius: '8px' }}
-                    >
-                      {file ? 'Đổi ảnh khác' : 'Chọn ảnh giấy tờ'}
+                    <Box sx={{ position: 'relative', width: '100%', mt: 1 }}>
+                      <Button
+                        type="button"
+                        fullWidth
+                        variant={file ? 'outlined' : 'contained'}
+                        color={file ? 'success' : 'primary'}
+                        size="small"
+                        startIcon={<CloudUploadOutlined />}
+                        sx={{ textTransform: 'none', borderRadius: '8px', pointerEvents: 'none' }}
+                      >
+                        {file ? 'Đổi ảnh khác' : 'Chọn ảnh giấy tờ'}
+                      </Button>
                       <input
-                        hidden
                         type="file"
                         accept="image/png,image/jpeg,image/webp,application/pdf"
                         onChange={handleFileChange(doc.type)}
+                        onClick={(e) => {
+                          (e.target as HTMLInputElement).value = '';
+                        }}
+                        style={{
+                          position: 'absolute',
+                          top: 0,
+                          left: 0,
+                          width: '100%',
+                          height: '100%',
+                          opacity: 0,
+                          cursor: 'pointer',
+                          zIndex: 10,
+                        }}
                       />
-                    </Button>
+                    </Box>
                   </Paper>
                 );
               })}
@@ -412,7 +443,17 @@ export default function InspectorDroneRegistrationPage() {
 
           {submit.isError && (
             <Alert severity="error">
-              Không thể gửi hồ sơ đăng ký drone. Vui lòng kiểm tra lại hình ảnh và thử lại.
+              {(() => {
+                const err = submit.error as {
+                  response?: { data?: { detail?: string; message?: string } };
+                  message?: string;
+                };
+                const detail =
+                  err?.response?.data?.detail || err?.response?.data?.message || err?.message;
+                return detail
+                  ? `Không thể gửi hồ sơ đăng ký drone: ${detail}`
+                  : 'Không thể gửi hồ sơ đăng ký drone. Vui lòng kiểm tra lại hình ảnh và thử lại.';
+              })()}
             </Alert>
           )}
 
@@ -454,90 +495,175 @@ export default function InspectorDroneRegistrationPage() {
       </Paper>
 
       {/* DANH SÁCH HỒ SƠ ĐÃ GỬI & ĐÃ ĐƯỢC DUYỆT */}
-      <Paper variant="outlined" sx={{ p: 3, mt: 3, borderRadius: '16px' }}>
-        <Typography variant="h6" sx={{ fontWeight: 700, mb: 1.5 }}>
-          Hồ sơ đăng ký Drone đã gửi
-        </Typography>
+      <Paper variant="outlined" sx={{ p: 3, mt: 3, borderRadius: '16px', bgcolor: 'background.paper' }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+          <Typography variant="h6" sx={{ fontWeight: 700 }}>
+            Hồ sơ đăng ký Drone đã gửi
+          </Typography>
+          <Button
+            size="small"
+            startIcon={<RefreshRounded />}
+            onClick={() => void applications.refetch()}
+            disabled={applications.isFetching}
+            sx={{ textTransform: 'none', fontWeight: 600 }}
+          >
+            {applications.isFetching ? 'Đang cập nhật…' : 'Làm mới'}
+          </Button>
+        </Box>
+
         {applications.error && <Alert severity="error">Không thể tải danh sách hồ sơ.</Alert>}
         {applications.isLoading ? (
-          <Typography>Đang tải danh sách hồ sơ…</Typography>
+          <Typography color="text.secondary">Đang tải danh sách hồ sơ…</Typography>
         ) : (applications.data ?? []).length === 0 ? (
           <Typography color="text.secondary">Chưa có hồ sơ đăng ký nào được gửi.</Typography>
         ) : (
-          (applications.data ?? []).map((application) => (
-            <Box
-              key={application.id}
-              sx={{
-                py: 1.5,
-                borderBottom: 1,
-                borderColor: 'divider',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-              }}
-            >
-              <Box>
-                <Typography sx={{ fontWeight: 600 }}>
-                  {application.model ?? 'Drone'} · Serial: {application.serialNumber}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Số đăng ký: {application.registrationNumber}
-                  {application.reviewNote ? ` · Ghi chú: ${application.reviewNote}` : ''}
-                </Typography>
+          <Stack spacing={1.5}>
+            {(applications.data ?? []).map((application) => (
+              <Box
+                key={application.id}
+                sx={{
+                  p: 2,
+                  border: '1px solid',
+                  borderColor: application.status === 'APPROVED' ? '#bbf7d0' : '#e2e8f0',
+                  borderRadius: '10px',
+                  bgcolor: application.status === 'APPROVED' ? '#f0fdf4' : '#ffffff',
+                  display: 'flex',
+                  flexDirection: { xs: 'column', sm: 'row' },
+                  justifyContent: 'space-between',
+                  alignItems: { xs: 'flex-start', sm: 'center' },
+                  gap: 1.5,
+                }}
+              >
+                <Box sx={{ minWidth: 0, flex: 1 }}>
+                  <Typography sx={{ fontWeight: 700, color: '#0f172a' }}>
+                    {application.model ?? 'Drone'}
+                  </Typography>
+                  <Typography variant="body2" sx={{ color: '#475569', mt: 0.25 }}>
+                    Số Serial: <strong style={{ fontFamily: 'monospace' }}>{application.serialNumber}</strong> · Số đăng ký: <strong>{application.registrationNumber}</strong>
+                  </Typography>
+                  <Typography variant="body2" sx={{ color: '#334155', mt: 0.5, fontSize: '13px' }}>
+                    👤 <strong>Người đăng ký:</strong> {application.inspectorFullName || 'Inspector'} ({application.inspectorEmail || '—'})
+                  </Typography>
+                  {application.reviewNote && (
+                    <Typography variant="body2" sx={{ color: '#dc2626', mt: 0.5 }}>
+                      Lý do/Ghi chú: {application.reviewNote}
+                    </Typography>
+                  )}
+                </Box>
+                <Chip
+                  label={
+                    application.status === 'APPROVED'
+                      ? 'ĐÃ DUYỆT THÀNH CÔNG'
+                      : application.status === 'REJECTED'
+                        ? 'BỊ TỪ CHỐI'
+                        : 'CHỜ MANAGER DUYỆT'
+                  }
+                  color={
+                    application.status === 'APPROVED'
+                      ? 'success'
+                      : application.status === 'REJECTED'
+                        ? 'error'
+                        : 'warning'
+                  }
+                  sx={{ fontWeight: 700, fontSize: '12px' }}
+                />
               </Box>
-              <Chip
-                size="small"
-                label={
-                  application.status === 'APPROVED'
-                    ? 'Đã duyệt'
-                    : application.status === 'REJECTED'
-                      ? 'Từ chối'
-                      : 'Chờ Manager duyệt'
-                }
-                color={
-                  application.status === 'APPROVED'
-                    ? 'success'
-                    : application.status === 'REJECTED'
-                      ? 'error'
-                      : 'warning'
-                }
-              />
-            </Box>
-          ))
+            ))}
+          </Stack>
         )}
       </Paper>
 
-      <Paper variant="outlined" sx={{ p: 3, mt: 3, borderRadius: '16px' }}>
-        <Typography variant="h6" sx={{ fontWeight: 700, mb: 1.5 }}>
-          Drone đã được duyệt sẵn sàng hoạt động
-        </Typography>
+      <Paper variant="outlined" sx={{ p: 3, mt: 3, borderRadius: '16px', bgcolor: 'background.paper' }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+          <Typography variant="h6" sx={{ fontWeight: 700 }}>
+            Drone đã được duyệt sẵn sàng hoạt động
+          </Typography>
+          <Button
+            size="small"
+            startIcon={<RefreshRounded />}
+            onClick={() => void drones.refetch()}
+            disabled={drones.isFetching}
+            sx={{ textTransform: 'none', fontWeight: 600 }}
+          >
+            {drones.isFetching ? 'Đang cập nhật…' : 'Làm mới'}
+          </Button>
+        </Box>
+
         {drones.error && <Alert severity="error">Không thể tải danh sách drone đã duyệt.</Alert>}
         {(drones.data ?? []).length === 0 ? (
           <Typography color="text.secondary">Chưa có drone nào được duyệt.</Typography>
         ) : (
-          (drones.data ?? []).map((drone) => (
-            <Box
-              key={drone.id}
-              sx={{
-                py: 1.5,
-                borderBottom: 1,
-                borderColor: 'divider',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-              }}
-            >
-              <Box>
-                <Typography sx={{ fontWeight: 600 }}>
-                  {drone.model ?? 'Drone'} · Serial: {drone.serialNumber}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Hãng: {drone.manufacturer ?? '—'}
-                </Typography>
-              </Box>
-              <Chip size="small" label="Sẵn sàng bay" color="success" />
-            </Box>
-          ))
+          <Stack spacing={1.5}>
+            {(drones.data ?? []).map((drone) => {
+              const expStatus = (() => {
+                if (!drone.registrationExpiresAt) return null;
+                const exp = new Date(drone.registrationExpiresAt);
+                if (isNaN(exp.getTime())) return null;
+                const now = new Date();
+                const diffTime = exp.getTime() - now.getTime();
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                if (diffDays <= 0) {
+                  return {
+                    label: `HẾT HẠN KIỂM ĐỊNH (${exp.toLocaleDateString('vi-VN')})`,
+                    color: 'error' as const,
+                  };
+                }
+                if (diffDays <= 60) {
+                  return {
+                    label: `SẮP HẾT HẠN KIỂM ĐỊNH (Còn ${diffDays} ngày)`,
+                    color: 'warning' as const,
+                  };
+                }
+                return {
+                  label: `Hạn đăng kiểm: ${exp.toLocaleDateString('vi-VN')}`,
+                  color: 'success' as const,
+                };
+              })();
+
+              return (
+                <Box
+                  key={drone.id}
+                  sx={{
+                    p: 2,
+                    border: '1px solid #bbf7d0',
+                    borderRadius: '10px',
+                    bgcolor: '#f0fdf4',
+                    display: 'flex',
+                    flexDirection: { xs: 'column', sm: 'row' },
+                    justifyContent: 'space-between',
+                    alignItems: { xs: 'flex-start', sm: 'center' },
+                    gap: 1.5,
+                  }}
+                >
+                  <Box>
+                    <Typography sx={{ fontWeight: 700, color: '#0f172a' }}>
+                      {drone.model ?? 'Drone'}
+                    </Typography>
+                    <Typography variant="body2" sx={{ color: '#475569', mt: 0.25 }}>
+                      Số Serial: <strong style={{ fontFamily: 'monospace' }}>{drone.serialNumber}</strong> · Hãng: <strong>{drone.manufacturer ?? '—'}</strong>
+                      {drone.registrationNumber && (
+                        <span> · Số đăng ký: <strong>{drone.registrationNumber}</strong></span>
+                      )}
+                    </Typography>
+                    <Typography variant="body2" sx={{ color: '#334155', mt: 0.5, fontSize: '13px' }}>
+                      👤 <strong>Chủ sở hữu:</strong> {drone.inspectorFullName || 'Inspector'} ({drone.inspectorEmail || '—'})
+                    </Typography>
+                  </Box>
+                  <Box sx={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 1 }}>
+                    {expStatus && (
+                      <Chip
+                        size="small"
+                        label={expStatus.label}
+                        color={expStatus.color}
+                        sx={{ fontWeight: 600, fontSize: '12px' }}
+                      />
+                    )}
+                    <Chip size="small" label="Sẵn sàng bay" color="success" sx={{ fontWeight: 700 }} />
+                  </Box>
+                </Box>
+              );
+            })}
+          </Stack>
         )}
       </Paper>
     </Box>

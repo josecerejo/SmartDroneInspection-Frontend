@@ -42,6 +42,7 @@ const authenticatedFlow = {
   accessTokenExpiresInSeconds: 900,
   user: {
     ...user,
+    avatarUrl: null,
     pilotLicenseNumber: undefined,
     pilotLicenseClass: undefined,
     pilotLicenseExpiresAt: undefined,

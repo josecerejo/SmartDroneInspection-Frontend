@@ -44,6 +44,9 @@ export interface InspectorPartnerApplication {
 export interface DroneRegistrationApplication {
   id: string;
   inspectorUserId: string;
+  inspectorFullName?: string | null;
+  inspectorEmail?: string | null;
+  inspectorPilotLicenseNumber?: string | null;
   serialNumber: string;
   model: string | null;
   manufacturer: string | null;
@@ -54,6 +57,9 @@ export interface DroneRegistrationApplication {
   inspectionFileKey: string;
   status: string;
   reviewNote: string | null;
+  reviewedByUserId?: string | null;
+  reviewerFullName?: string | null;
+  reviewedAt?: string | null;
   droneId: string | null;
   createdAt: string;
 }
@@ -77,6 +83,8 @@ export const mf1ReviewApi = {
     api.post<InspectorPartnerApplication | { data: InspectorPartnerApplication }>(`/inspector-partner-applications/${id}/reject`, { reviewNote }).then(unwrapMutation),
   pendingDrones: () =>
     api.get<DroneRegistrationApplication[] | { data: DroneRegistrationApplication[] }>('/drone-registration-applications/pending').then(unwrap),
+  droneHistory: () =>
+    api.get<DroneRegistrationApplication[] | { data: DroneRegistrationApplication[] }>('/drone-registration-applications/history').then(unwrap),
   approveDrone: (id: string) =>
     api.post<DroneRegistrationApplication | { data: DroneRegistrationApplication }>(`/drone-registration-applications/${id}/approve`).then(unwrapMutation),
   rejectDrone: (id: string, reviewNote: string) =>

@@ -41,7 +41,7 @@ export interface OrganizationRegistrationRequest {
   organizationName: string;
   organizationCode: string;
   password: string;
-  firstAsset: FirstAssetRegistrationInput;
+  firstAsset?: FirstAssetRegistrationInput | undefined;
   otpChallengeToken?: string | undefined;
   otpCode?: string | undefined;
 }
@@ -68,6 +68,34 @@ export async function sendRegistrationOtp(
   return data;
 }
 
+export interface SendPasswordResetOtpResponse {
+  challengeToken: string;
+  expiresInSeconds: number;
+}
+
+export async function sendPasswordResetOtp(
+  email: string,
+): Promise<SendPasswordResetOtpResponse> {
+  const { data } = await postWithBrowserCsrf<SendPasswordResetOtpResponse>(
+    '/auth/password-reset/otp/send',
+    { email },
+  );
+  return data;
+}
+
+export interface ConfirmPasswordResetInput {
+  email: string;
+  challengeToken: string;
+  code: string;
+  newPassword: string;
+}
+
+export async function confirmPasswordReset(
+  input: ConfirmPasswordResetInput,
+): Promise<void> {
+  await postWithBrowserCsrf<void>('/auth/password-reset/confirm', input);
+}
+
 interface ApiUser {
   id: string;
   email: string;
@@ -75,6 +103,7 @@ interface ApiUser {
   roles: unknown;
   actorZone: string;
   organizationId: string | null;
+  avatarUrl?: string | null;
   visionFallbackEnabled?: boolean;
   pilotLicenseNumber?: string;
   pilotLicenseClass?: string;
@@ -138,6 +167,7 @@ function parseUser(value: unknown): AuthUser {
     actorZone,
     organizationId:
       typeof user.organizationId === 'string' ? user.organizationId : null,
+    avatarUrl: typeof user.avatarUrl === 'string' ? user.avatarUrl : null,
     visionFallbackEnabled:
       typeof user.visionFallbackEnabled === 'boolean'
         ? user.visionFallbackEnabled
@@ -350,6 +380,13 @@ export async function logoutCurrentSession(): Promise<void> {
 
 export async function logoutAllSessions(): Promise<void> {
   await postWithBrowserCsrf('/auth/logout-all');
+}
+
+export async function updateAvatar(avatarUrl: string): Promise<AuthUser> {
+  const { data } = await api.patch<AuthUser>('/auth/profile/avatar', {
+    avatarUrl,
+  });
+  return parseUser(data);
 }
 
 export async function updateVisionFallbackPreference(visionFallbackEnabled: boolean): Promise<AuthUser> {
