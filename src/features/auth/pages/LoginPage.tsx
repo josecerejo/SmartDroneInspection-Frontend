@@ -97,9 +97,6 @@ export default function LoginPage() {
     window.location.href = `${apiBase}/auth/oauth2/authorize/google?client_type=web`;
   };
 
-  if (status === 'checking') {
-    return <AuthLoadingScreen />;
-  }
   const from = (location.state as { from?: unknown } | null)?.from;
   const returnTo = getLoginReturnTo(from, searchParams.get('returnTo'));
   const destination = getAuthRedirectTarget(returnTo, roles);
