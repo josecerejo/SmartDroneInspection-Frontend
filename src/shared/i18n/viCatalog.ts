@@ -1429,6 +1429,7 @@ export const viCatalog: Record<string, string> = {
   "Inspection": "Đợt kiểm tra",
 
   // Statuses & Workflow States
+  "DRAFT": "DỰ THẢO",
   "SCHEDULED": "ĐÃ LÊN LỊCH",
   "FIELD_COMPLETED": "HOÀN THÀNH HIỆN TRƯỜNG",
   "IN_PROGRESS": "ĐANG THỰC HIỆN",
@@ -1446,6 +1447,16 @@ export const viCatalog: Record<string, string> = {
   "ACTIVE": "ĐANG HOẠT ĐỘNG",
   "RETIRED": "ĐÃ LƯU TRỮ",
   "PENDING_REVIEW": "CHỜ XÉT DUYỆT",
+  "CLOSED": "HOÀN THÀNH",
+  "AWAITING_APPROVAL": "CHỜ PHÊ DUYỆT",
+  "APPROVED": "ĐÃ PHÊ DUYỆT",
+  "READY": "SẴN SÀNG",
+  "WORK_COMPLETED": "HOÀN THÀNH THI CÔNG",
+  "SUBMITTED_FOR_ACCEPTANCE": "CHỜ NGHIỆM THU",
+  "ACCEPTED": "ĐÃ NGHIỆM THU",
+  "COST_RECONCILED": "ĐÃ QUYẾT TOÁN",
+  "REWORK_REQUIRED": "YÊU CẦU SỬA LẠI",
+  "REINSPECTION_REQUIRED": "YÊU CẦU BAY LẠI",
 
   // Step 2 (Evidence), Step 3 (Findings), Step 4 (Report Draft)
   "Findings have already been confirmed for report drafting. To upload new captures, reopen the findings stage first.": "Danh sách khuyết tật đã được xác nhận để soạn báo cáo. Nếu muốn tải thêm bằng chứng mới, hãy mở lại bước Phân tích khuyết tật trước.",

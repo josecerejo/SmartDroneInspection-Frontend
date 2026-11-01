@@ -126,7 +126,7 @@ export const DashboardHeaderActions: React.FC<DashboardHeaderActionsProps> = ({
           '&:hover': { bgcolor: 'action.hover' },
         }}
       >
-        {t('Sep 09 - Oct 09')}
+        {`${t('Năm')} ${new Date().getFullYear()} (01/01 - ${String(new Date().getDate()).padStart(2, '0')}/${String(new Date().getMonth() + 1).padStart(2, '0')})`}
       </Button>
 
       {/* Export Button */}

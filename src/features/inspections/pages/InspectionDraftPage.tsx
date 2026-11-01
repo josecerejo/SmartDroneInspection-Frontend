@@ -387,18 +387,11 @@ export default function InspectionDraftPage() {
         loading={submit.isPending}
         maxWidth="sm"
         onCancel={() => setConfirmSubmitOpen(false)}
-        onConfirm={async () => {
+        onConfirm={() => {
           if (openVersion) {
-            try {
-              if (openVersion.status === 'DRAFT' || openVersion.status === 'RETURNED') {
-                await verify.mutateAsync(openVersion.id);
-              }
-              submit.mutate(openVersion.id, {
-                onSuccess: () => setConfirmSubmitOpen(false),
-              });
-            } catch {
-              // MutationProblemAlert displays the error
-            }
+            submit.mutate(openVersion.id, {
+              onSuccess: () => setConfirmSubmitOpen(false),
+            });
           }
         }}
       >
