@@ -20,7 +20,6 @@ import {
   confirmPasswordReset,
   getAuthErrorMessage,
   login,
-  loginWithGoogle,
   sendLoginOtp,
   sendPasswordResetOtp,
   verifyLoginOtp,
@@ -146,88 +145,6 @@ export default function LoginPage() {
       });
     } catch (error) {
       setErrorMessage(getAuthErrorMessage(error));
-    }
-  };
-
-  const GOOGLE_CLIENT_ID =
-    (import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined) ??
-    '690876253853-mqm43muduqudn1jbsu292sprrcec100a.apps.googleusercontent.com';
-
-  const handleGoogleCredential = async (credential: string) => {
-    setErrorMessage(null);
-    try {
-      const result = await loginWithGoogle(credential);
-      if (result.step === 'OTP_REQUIRED') {
-        if (!result.challengeToken || !result.availableOtpChannels?.length) {
-          throw new Error('The verification options are unavailable. Contact your administrator.');
-        }
-        setOtpChallenge(result.challengeToken);
-        setOtpChannels(result.availableOtpChannels);
-        setOtpChannel(result.availableOtpChannels[0] ?? null);
-        setOtpCode('');
-        setOtpSent(false);
-        return;
-      }
-      if (!result.accessToken || !result.user) {
-        throw new Error('The sign-in response did not include an access token.');
-      }
-      const portal: PortalId | null = getPortalForHost(window.location.hostname);
-      if (portal && !hasAnyRole(result.user.roles, PORTAL_ROLE_ACCESS[portal])) {
-        setErrorMessage('This account does not belong to this workspace.');
-        return;
-      }
-      setSession({ accessToken: result.accessToken, user: result.user });
-      navigate(getAuthRedirectTarget(returnTo, result.user.roles), {
-        replace: true,
-      });
-    } catch (error) {
-      setErrorMessage(getAuthErrorMessage(error));
-    }
-  };
-
-  useEffect(() => {
-    const google = (window as unknown as { google?: { accounts?: { id?: any } } })?.google;
-    if (google?.accounts?.id) {
-      google.accounts.id.initialize({
-        client_id: GOOGLE_CLIENT_ID,
-        callback: (response: { credential?: string }) => {
-          if (response.credential) {
-            void handleGoogleCredential(response.credential);
-          }
-        },
-      });
-      const container = document.getElementById('gsi-hidden-btn');
-      if (container) {
-        google.accounts.id.renderButton(container, {
-          type: 'standard',
-          size: 'large',
-        });
-      }
-    }
-  }, []);
-
-  const onGoogleClick = () => {
-    setErrorMessage(null);
-    const google = (window as unknown as { google?: { accounts?: { id?: any } } })?.google;
-    if (google?.accounts?.id) {
-      google.accounts.id.initialize({
-        client_id: GOOGLE_CLIENT_ID,
-        callback: (response: { credential?: string }) => {
-          if (response.credential) {
-            void handleGoogleCredential(response.credential);
-          }
-        },
-      });
-      google.accounts.id.prompt((notification: { isNotDisplayed?: () => boolean; isSkippedMoment?: () => boolean }) => {
-        if (notification.isNotDisplayed?.() || notification.isSkippedMoment?.()) {
-          const hiddenBtn = document.getElementById('gsi-hidden-btn')?.querySelector('div[role="button"]') as HTMLElement | null;
-          if (hiddenBtn) {
-            hiddenBtn.click();
-          }
-        }
-      });
-    } else {
-      setErrorMessage('Google Sign-In is initializing. Please try again.');
     }
   };
 
@@ -780,7 +697,6 @@ export default function LoginPage() {
         line2: 'Intelligent Insights',
       }}
     >
-      <div id="gsi-hidden-btn" style={{ position: 'absolute', opacity: 0.01, pointerEvents: 'none', zIndex: -1 }} />
       <Stack
         component="form"
         spacing={2.2}
