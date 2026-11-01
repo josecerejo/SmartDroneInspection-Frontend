@@ -9,7 +9,6 @@ import {
 import {
   inspectionApi,
   type Finding,
-  type FindingSeverity,
   type CreateInspectionInput,
   type InspectionListFilters,
   type ManualDraftInput,
@@ -431,27 +430,6 @@ export function useInspectionFindings(inspectionId: string | null) {
     queryKey: inspectionKeys.findings(inspectionId ?? ''),
     queryFn: () => inspectionApi.listFindings(inspectionId!),
     enabled: Boolean(inspectionId),
-  });
-}
-
-export function useInspectionFindingsQuery(
-  inspectionId: string | null,
-  filters: {
-    status?: 'ACTIVE' | 'PENDING' | 'CONFIRMED' | 'REMOVED' | 'ALL';
-    severity?: FindingSeverity;
-    source?: 'ALL' | 'AI' | 'MANUAL';
-    defectQuery?: string;
-    evidenceQuery?: string;
-    page?: number;
-    pageSize?: number;
-  },
-  enabled = true,
-) {
-  return useQuery({
-    queryKey: inspectionKeys.findingsQuery(inspectionId ?? '', filters),
-    queryFn: () => inspectionApi.queryFindings(inspectionId!, filters),
-    enabled: Boolean(inspectionId) && enabled,
-    placeholderData: (previous) => previous,
   });
 }
 

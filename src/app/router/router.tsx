@@ -46,7 +46,6 @@ const DashboardPage = lazy(
 );
 const AssetsPage = lazy(() => import('@/features/assets/pages/AssetsPage'));
 const AssetCatalogPage = lazy(() => import('@/features/assets/pages/AssetCatalogPage'));
-const AssetReviewPage = lazy(() => import('@/features/assets/pages/AssetReviewPage'));
 const InspectorDroneRegistrationPage = lazy(
   () => import('@/features/assets/pages/InspectorDroneRegistrationPage'),
 );
@@ -136,7 +135,6 @@ const SECTION_ELEMENTS: Record<SectionId, ReactNode> = {
   contracts: <ContractsPage />,
   assets: <AssetsPage />,
   'asset-catalog': <AssetCatalogPage />,
-  'asset-review': <AssetReviewPage />,
   inspections: <InspectionsPage />,
   reports: <ReportsPage />,
   maintenance: <MaintenancePage />,
