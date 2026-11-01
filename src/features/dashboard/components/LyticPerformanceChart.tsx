@@ -176,7 +176,7 @@ export const LyticPerformanceChart: React.FC<LyticPerformanceChartProps> = ({
 
           {/* Dotted Horizontal Grid Lines & Y-Axis Labels */}
           {yTicks.map((tick, i) => {
-            const y = paddingTop + (i / (yTicks.length - 1)) * chartHeight;
+            const y = paddingTop + chartHeight - (i / (yTicks.length - 1)) * chartHeight;
             return (
               <g key={tick}>
                 <line

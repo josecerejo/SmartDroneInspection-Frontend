@@ -80,6 +80,27 @@ export default function LoginPage() {
     defaultValues: { currentPassword: '', password: '', confirmPassword: '' },
   });
 
+  useEffect(() => {
+    const errorParam = searchParams.get('error');
+    if (errorParam) {
+      if (errorParam === 'google_oauth_not_configured') {
+        setErrorMessage(t('Google Sign-In is not configured on this server.'));
+      } else if (errorParam === 'access_denied') {
+        setErrorMessage(t('Google Sign-In was cancelled or access was denied.'));
+      } else {
+        setErrorMessage(t('Google Sign-In failed. Please try again.'));
+      }
+    }
+  }, [searchParams, t]);
+
+  const onGoogleLogin = () => {
+    const apiBase = import.meta.env.VITE_API_URL ?? '/api/v1';
+    window.location.href = `${apiBase}/auth/oauth2/authorize/google?client_type=web`;
+  };
+
+  if (status === 'checking') {
+    return <AuthLoadingScreen />;
+  }
   const from = (location.state as { from?: unknown } | null)?.from;
   const returnTo = getLoginReturnTo(from, searchParams.get('returnTo'));
   const destination = getAuthRedirectTarget(returnTo, roles);
@@ -753,7 +774,7 @@ export default function LoginPage() {
       backLabel={t('Back to website')}
       backTo="/"
       socialPrompt={t('Or sign in with')}
-      onGoogleClick={onGoogleClick}
+      onGoogleClick={onGoogleLogin}
       heroTagline={{
         line1: 'Precision View,',
         line2: 'Intelligent Insights',

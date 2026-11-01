@@ -132,7 +132,7 @@ describe('CorrectiveDispositionPage', () => {
       versionNo: 1,
       publishedAt: '2026-10-01T12:00:00Z',
       forwardedFindingIds: ['finding-1', 'finding-2'],
-      inspectionStatus: 'REPAIR_PENDING',
+      inspectionStatus: 'COMPLETED',
     } as never);
 
     renderPage();
@@ -160,7 +160,7 @@ describe('CorrectiveDispositionPage', () => {
       versionNo: 1,
       publishedAt: '2026-10-01T12:00:00Z',
       forwardedFindingIds: ['finding-2'],
-      inspectionStatus: 'REPAIR_PENDING',
+      inspectionStatus: 'COMPLETED',
     } as never);
 
     renderPage();
@@ -186,12 +186,16 @@ describe('CorrectiveDispositionPage', () => {
       findingsSnapshotHash: 'abc123',
     } as never);
     mockedApi.listFindings.mockResolvedValue([
-      finding({ id: 'finding-1', defectLabel: 'Crack on beam' }),
+      finding({
+        id: 'finding-1',
+        defectLabel: 'Crack on beam',
+        forwardedToMaintenanceAt: '2026-10-01T12:00:00Z',
+      }),
     ] as never);
 
     renderPage();
 
-    expect(await screen.findByText(/this inspection is complete/i)).toBeTruthy();
+    expect(await screen.findByText(/All confirmed findings from this report have already been forwarded/i)).toBeTruthy();
     expect(screen.queryByRole('button', { name: /Send .* to Maintenance/i })).toBeNull();
     expect(screen.queryByRole('button', { name: /Complete inspection without forwarding/i })).toBeNull();
   });

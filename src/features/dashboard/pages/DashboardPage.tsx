@@ -9,6 +9,7 @@ import BuildOutlined from '@mui/icons-material/BuildOutlined';
 import ArrowForwardRounded from '@mui/icons-material/ArrowForwardRounded';
 import { useAuthStore } from '@/features/auth/store/authStore';
 import { useAssets } from '@/features/assets/hooks/useAssets';
+import { useDashboardAnalytics } from '../hooks/useDashboardAnalytics';
 import {
   REPORT3_ROLE_DASHBOARDS,
   type RoleId,
@@ -85,6 +86,7 @@ export default function DashboardPage() {
       : ['INSPECTOR', 'MAINTENANCE_ENGINEER'];
   const availableDashboardRoles = dashboardRoleOptions.filter((role) => roles.includes(role));
   const assets = useAssets({ page: 1, pageSize: 50 }, canReadAssets);
+  const analytics = useDashboardAnalytics();
 
   // Role controls only vary presentation within roles actually assigned to the account.
   const defaultRole: RoleId = isOrganization
@@ -294,6 +296,33 @@ export default function DashboardPage() {
       }))
     : config.table.rows;
 
+  const liveMetrics = analytics.data?.summaryCards && analytics.data.summaryCards.length > 0
+    ? analytics.data.summaryCards.map((m) => ({
+        id: m.id,
+        label: t(m.label),
+        value: m.value,
+        change: m.change,
+        positive: m.positive,
+        subtext: t(m.subtext),
+        iconType: m.iconType,
+      }))
+    : metrics;
+
+  const perfChart = analytics.data?.performanceChart ?? config.performanceChart;
+  const radialGauge = analytics.data?.radialGauge ?? config.radialGauge;
+  const stackedBar = analytics.data?.stackedBarChart ?? config.stackedBarChart;
+
+  const dynamicTableRows = analytics.data?.queueTable?.rows && analytics.data.queueTable.rows.length > 0
+    ? analytics.data.queueTable.rows
+    : tableRows;
+  const dynamicTableHeaders = analytics.data?.queueTable?.headers && analytics.data.queueTable.headers.length > 0
+    ? analytics.data.queueTable.headers
+    : (canReadAssets ? ['Asset', 'Location', 'Code', 'Status', 'Action'] : config.table.headers);
+  const dynamicTableTitle = analytics.data?.queueTable?.title ?? overviewTitle;
+  const dynamicTableSubtitle = analytics.data?.queueTable?.subtitle ?? overviewDescription;
+  const dynamicViewAllLink = analytics.data?.queueTable?.viewAllLink ?? config.table.viewAllLink;
+  const dynamicViewAllText = analytics.data?.queueTable?.viewAllText ?? config.table.viewAllText;
+
   return (
     <Box
       sx={{
@@ -334,6 +363,7 @@ export default function DashboardPage() {
           onRoleChange={handleRoleChange}
           onRefresh={() => {
             if (canReadAssets) void assets.refetch();
+            void analytics.refetch();
           }}
           onExport={() => {
             window.print();
@@ -355,7 +385,7 @@ export default function DashboardPage() {
           mb: 3,
         }}
       >
-        {metrics.map((st) => (
+        {liveMetrics.map((st) => (
           <MetricCard
             key={st.id}
             label={st.label}
@@ -363,7 +393,7 @@ export default function DashboardPage() {
             change={st.change}
             positive={st.positive}
             subtext={st.subtext}
-            iconType={st.iconType}
+            iconType={st.iconType as any}
           />
         ))}
       </Box>
@@ -382,29 +412,29 @@ export default function DashboardPage() {
       >
         <Box sx={{ minWidth: 0 }}>
           <LyticPerformanceChart
-            headerLabel={config.performanceChart.headerLabel}
-            headlineValue={config.performanceChart.headlineValue}
-            trendBadge={config.performanceChart.trendBadge}
-            series1Name={config.performanceChart.series1Name}
-            series1Color={config.performanceChart.series1Color}
-            series1Data={config.performanceChart.series1Data}
-            series2Name={config.performanceChart.series2Name}
-            series2Color={config.performanceChart.series2Color}
-            series2Data={config.performanceChart.series2Data}
-            months={config.performanceChart.months}
-            yTicks={config.performanceChart.yTicks}
-            maxVal={config.performanceChart.maxVal}
+            headerLabel={perfChart.headerLabel}
+            headlineValue={perfChart.headlineValue}
+            trendBadge={perfChart.trendBadge}
+            series1Name={perfChart.series1Name}
+            series1Color={perfChart.series1Color}
+            series1Data={perfChart.series1Data}
+            series2Name={perfChart.series2Name}
+            series2Color={perfChart.series2Color}
+            series2Data={perfChart.series2Data}
+            months={perfChart.months}
+            yTicks={perfChart.yTicks}
+            maxVal={perfChart.maxVal}
           />
         </Box>
 
         <Box sx={{ minWidth: 0 }}>
           <LyticRadialGaugeCard
-            title={config.radialGauge.title}
-            subtitle={config.radialGauge.subtitle}
-            targetValue={config.radialGauge.targetValue}
-            targetLabel={config.radialGauge.targetLabel}
-            percentage={config.radialGauge.percentage}
-            subMetrics={config.radialGauge.subMetrics}
+            title={radialGauge.title}
+            subtitle={radialGauge.subtitle}
+            targetValue={radialGauge.targetValue}
+            targetLabel={radialGauge.targetLabel}
+            percentage={radialGauge.percentage}
+            subMetrics={radialGauge.subMetrics}
           />
         </Box>
       </Box>
@@ -422,21 +452,21 @@ export default function DashboardPage() {
       >
         <Box sx={{ minWidth: 0 }}>
           <LyticStackedBarChart
-            title={config.stackedBarChart.title}
-            categories={config.stackedBarChart.categories}
-            channels={config.stackedBarChart.channels}
-            maxStack={config.stackedBarChart.maxStack}
+            title={stackedBar.title}
+            categories={stackedBar.categories}
+            channels={stackedBar.channels}
+            maxStack={stackedBar.maxStack}
           />
         </Box>
 
         <Box sx={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2.5 }}>
           <LyticQueueTable
-            title={overviewTitle}
-            subtitle={overviewDescription}
-            headers={canReadAssets ? ['Asset', 'Location', 'Code', 'Status', 'Action'] : config.table.headers}
-            rows={tableRows}
-            viewAllLink={canReadAssets ? '/client/assets' : config.table.viewAllLink}
-            viewAllText={canReadAssets ? 'View all assets' : config.table.viewAllText}
+            title={dynamicTableTitle}
+            subtitle={dynamicTableSubtitle}
+            headers={dynamicTableHeaders}
+            rows={dynamicTableRows}
+            viewAllLink={dynamicViewAllLink}
+            viewAllText={dynamicViewAllText}
           />
 
           {/* Workspace Shortcuts Section */}

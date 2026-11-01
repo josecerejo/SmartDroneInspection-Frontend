@@ -34,14 +34,13 @@ import ApartmentIcon from '@mui/icons-material/Apartment';
 import CategoryIcon from '@mui/icons-material/Category';
 import FactCheckIcon from '@mui/icons-material/FactCheck';
 import FlightTakeoffIcon from '@mui/icons-material/FlightTakeoff';
+import FlightRounded from '@mui/icons-material/FlightRounded';
 import CalendarMonthOutlinedIcon from '@mui/icons-material/CalendarMonthOutlined';
 import BuildIcon from '@mui/icons-material/Build';
 import MenuIcon from '@mui/icons-material/Menu';
 import MenuOpenRounded from '@mui/icons-material/MenuOpenRounded';
 import GroupsIcon from '@mui/icons-material/Groups';
 import ManageAccountsIcon from '@mui/icons-material/ManageAccounts';
-import CardMembershipRounded from '@mui/icons-material/CardMembershipRounded';
-import FlightRounded from '@mui/icons-material/FlightRounded';
 import SearchRounded from '@mui/icons-material/SearchRounded';
 import AccountCircleOutlined from '@mui/icons-material/AccountCircleOutlined';
 import LogoutRounded from '@mui/icons-material/LogoutRounded';
@@ -88,7 +87,6 @@ const NAV_ITEMS = [
   { section: 'onboarding-reviews', icon: <FactCheckIcon /> },
   { section: 'maintenance', icon: <BuildIcon /> },
   { section: 'workforce', icon: <GroupsIcon /> },
-  { section: 'subscriptions', icon: <CardMembershipRounded /> },
   { section: 'platform-users', icon: <ManageAccountsIcon /> },
   { section: 'settings', icon: <SettingsOutlined /> },
 ] as const;
