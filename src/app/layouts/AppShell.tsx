@@ -34,6 +34,7 @@ import ApartmentIcon from '@mui/icons-material/Apartment';
 import CategoryIcon from '@mui/icons-material/Category';
 import FlightTakeoffIcon from '@mui/icons-material/FlightTakeoff';
 import FlightRounded from '@mui/icons-material/FlightRounded';
+import FactCheckIcon from '@mui/icons-material/FactCheck';
 import CalendarMonthOutlinedIcon from '@mui/icons-material/CalendarMonthOutlined';
 import BuildIcon from '@mui/icons-material/Build';
 import MenuIcon from '@mui/icons-material/Menu';
