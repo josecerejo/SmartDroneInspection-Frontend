@@ -35,7 +35,21 @@ export const LyticStackedBarChart: React.FC<LyticStackedBarChartProps> = ({
   const chartWidth = svgWidth - paddingLeft - paddingRight;
   const chartHeight = svgHeight - paddingTop - paddingBottom;
 
-  const yTicks = [120, 100, 80, 60, 40, 20, 0];
+  const dataMax = Math.max(
+    ...categories.map((_, catIdx) =>
+      channels.reduce((sum, ch) => sum + (ch.data[catIdx] ?? 0), 0)
+    ),
+    1
+  );
+  const effectiveMax = Math.max(maxStack > 0 ? maxStack : 5, dataMax, 4);
+
+  const yTicks = [
+    effectiveMax,
+    Math.round((effectiveMax * 3) / 4),
+    Math.round((effectiveMax * 2) / 4),
+    Math.round((effectiveMax * 1) / 4),
+    0,
+  ];
   const barWidth = Math.min(24, (chartWidth / categories.length) * 0.45);
 
   return (
@@ -144,8 +158,8 @@ export const LyticStackedBarChart: React.FC<LyticStackedBarChartProps> = ({
                 {channels.map((ch, chIdx) => {
                   const val = ch.data[catIdx] ?? 0;
                   runningSum += val;
-                  const segmentHeight = (val / maxStack) * chartHeight;
-                  const y = paddingTop + chartHeight - (runningSum / maxStack) * chartHeight;
+                  const segmentHeight = (val / effectiveMax) * chartHeight;
+                  const y = paddingTop + chartHeight - (runningSum / effectiveMax) * chartHeight;
                   const isTop = chIdx === channels.length - 1;
 
                   return (

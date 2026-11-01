@@ -7,9 +7,15 @@ import { useAuthStore } from '@/features/auth/store/authStore';
 import { theme } from '@/app/theme/theme';
 import DashboardPage from './DashboardPage';
 
-const mocks = vi.hoisted(() => ({ useAssets: vi.fn() }));
+const mocks = vi.hoisted(() => ({
+  useAssets: vi.fn(),
+  useDashboardAnalytics: vi.fn(),
+}));
 vi.mock('@/features/assets/hooks/useAssets', () => ({
   useAssets: (...args: unknown[]) => mocks.useAssets(...args),
+}));
+vi.mock('../hooks/useDashboardAnalytics', () => ({
+  useDashboardAnalytics: () => mocks.useDashboardAnalytics(),
 }));
 
 const assetRows = [
@@ -30,6 +36,7 @@ describe('dashboard', () => {
   afterEach(cleanup);
   beforeEach(() => {
     mocks.useAssets.mockReset().mockReturnValue({ data: { items: assetRows, totalCount: 12 }, isLoading: false, error: null, refetch: vi.fn() });
+    mocks.useDashboardAnalytics.mockReset().mockReturnValue({ data: null, isLoading: false, error: null, refetch: vi.fn() });
   });
 
   it('shows organization-scoped asset metrics and the asset register', () => {

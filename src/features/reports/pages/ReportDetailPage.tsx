@@ -154,12 +154,12 @@ export default function ReportDetailPage() {
           startIcon={<ArrowBackRounded />}
           onClick={() => navigate(`${getSectionPath(portal, 'inspections')}?view=reports`)}
           sx={{
-            color: '#475467',
+            color: 'text.secondary',
             fontWeight: 600,
             fontSize: '14px',
             textTransform: 'none',
             borderRadius: '8px',
-            '&:hover': { bgcolor: '#f2f4f7' },
+            '&:hover': { bgcolor: 'action.hover' },
           }}
         >
           {canReview && !canAuthor ? 'Back to review queue' : 'Back to reports list'}
@@ -173,7 +173,7 @@ export default function ReportDetailPage() {
           sx={{
             fontSize: { xs: '1.5rem', sm: '1.875rem' },
             fontWeight: 700,
-            color: '#101828',
+            color: 'text.primary',
             letterSpacing: '-0.025em',
             mb: 0.5,
           }}
@@ -184,7 +184,7 @@ export default function ReportDetailPage() {
               ? t('Customer · Inspection Report')
               : t('Inspection Report')}
         </Typography>
-        <Typography variant="body2" sx={{ color: '#667085', fontSize: '0.875rem' }}>
+        <Typography variant="body2" sx={{ color: 'text.secondary', fontSize: '0.875rem' }}>
           {t('Inspection ID:')} {inspectionId} ·{' '}
           {portal === 'admin'
             ? t('Review the submitted report, record a decision, and publish approved versions.')
@@ -212,13 +212,14 @@ export default function ReportDetailPage() {
               sx={{
                 p: 2,
                 borderRadius: '16px',
-                border: '1px solid #eaecf0',
-                bgcolor: '#ffffff',
-                boxShadow: '0 1px 3px rgba(16,24,40,0.05)',
+                border: '1px solid',
+                borderColor: 'divider',
+                bgcolor: 'background.paper',
+                boxShadow: (theme) => (theme.palette.mode === 'dark' ? 'none' : '0 1px 3px rgba(16,24,40,0.05)'),
               }}
             >
               <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
-                <Typography variant="body2" sx={{ color: '#475467', fontWeight: 600 }}>
+                <Typography variant="body2" sx={{ color: 'text.secondary', fontWeight: 600 }}>
                   {t('Versions:')}
                 </Typography>
                 {versions.data.map((version) => {
@@ -288,12 +289,13 @@ export default function ReportDetailPage() {
                   sx={{
                     p: 2.5,
                     borderRadius: '16px',
-                    border: '1px solid #eaecf0',
-                    bgcolor: '#ffffff',
-                    boxShadow: '0 1px 3px rgba(16, 24, 40, 0.05)',
+                    border: '1px solid',
+                    borderColor: 'divider',
+                    bgcolor: 'background.paper',
+                    boxShadow: (theme) => (theme.palette.mode === 'dark' ? 'none' : '0 1px 3px rgba(16, 24, 40, 0.05)'),
                   }}
                 >
-                  <Typography sx={{ fontWeight: 700, fontSize: '1rem', color: '#101828', mb: 1.5 }}>
+                  <Typography sx={{ fontWeight: 700, fontSize: '1rem', color: 'text.primary', mb: 1.5 }}>
                     {t('Actions for Version')} {openVersion.versionNo}
                   </Typography>
 
@@ -324,7 +326,7 @@ export default function ReportDetailPage() {
                         >
                           {submit.isPending ? t('Submitting…') : t('Resubmit for review')}
                         </Button>
-                        <Typography variant="caption" sx={{ color: '#667085' }}>
+                        <Typography variant="caption" sx={{ color: 'text.secondary' }}>
                           {t('Resubmits this revised report for Platform Manager review.')}
                         </Typography>
                       </Stack>
@@ -442,7 +444,7 @@ export default function ReportDetailPage() {
                         >
                           {publish.isPending ? 'Publishing…' : 'Publish immutable version'}
                         </Button>
-                        <Typography variant="caption" sx={{ color: '#667085' }}>
+                        <Typography variant="caption" sx={{ color: 'text.secondary' }}>
                           {t('Makes this version permanent and immutable.')}
                         </Typography>
                       </Stack>
@@ -478,26 +480,27 @@ export default function ReportDetailPage() {
                   sx={{
                     p: 2.5,
                     borderRadius: '16px',
-                    border: '1px solid #b2ddff',
-                    bgcolor: '#f0f9ff',
+                    border: '1px solid',
+                    borderColor: (theme) => (theme.palette.mode === 'dark' ? 'primary.dark' : '#b2ddff'),
+                    bgcolor: (theme) => (theme.palette.mode === 'dark' ? 'rgba(2, 106, 162, 0.12)' : '#f0f9ff'),
                   }}
                 >
                   {isPaid ? (
                     <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-                      <CheckCircleRounded sx={{ color: '#027a48', fontSize: 22 }} />
-                      <Typography variant="subtitle1" sx={{ fontWeight: 700, color: '#027a48' }}>
-                        {t('Payment successful! The official report has been unlocked for download.')}
+                      <CheckCircleRounded sx={{ color: 'success.main', fontSize: 22 }} />
+                      <Typography variant="subtitle1" sx={{ fontWeight: 700, color: 'success.main' }}>
+                        {t('Thanh toán thành công! Báo cáo chính thức đã được mở khóa để tải về.')}
                       </Typography>
                     </Stack>
                   ) : isReportAccepted ? (
                     <Stack spacing={1.5}>
                       <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-                        <CheckCircleRounded sx={{ color: '#027a48', fontSize: 22 }} />
-                        <Typography variant="subtitle1" sx={{ fontWeight: 700, color: '#027a48' }}>
-                          {t('Report accepted')}
+                        <CheckCircleRounded sx={{ color: 'success.main', fontSize: 22 }} />
+                        <Typography variant="subtitle1" sx={{ fontWeight: 700, color: 'success.main' }}>
+                          {t('Báo cáo đã được nghiệm thu (Report Accepted)')}
                         </Typography>
                       </Stack>
-                      <Typography variant="body2" sx={{ color: '#026aa2' }}>
+                      <Typography variant="body2" sx={{ color: 'text.secondary' }}>
                         {t(
                           'The report has been accepted successfully. Please complete the service payment to unlock and download the official stamped PDF deliverable.',
                         )}
@@ -523,11 +526,11 @@ export default function ReportDetailPage() {
                     </Stack>
                   ) : (
                     <Stack spacing={1.5}>
-                      <Typography variant="subtitle1" sx={{ fontWeight: 700, color: '#026aa2' }}>
-                        {t('Customer report acceptance')}
+                      <Typography variant="subtitle1" sx={{ fontWeight: 700, color: 'text.primary' }}>
+                        {t('Nghiệm thu báo cáo (Customer Report Acceptance)')}
                       </Typography>
                       <ReportAiSummaryCard inspectionId={inspectionId} versionId={openVersion.id} />
-                      <Typography variant="body2" sx={{ color: '#026aa2' }}>
+                      <Typography variant="body2" sx={{ color: 'text.secondary' }}>
                         {t(
                           'Please review the published inspection report below. When satisfied with the inspection findings, click "Accept Report" to record acceptance and unlock the payment gateway.',
                         )}

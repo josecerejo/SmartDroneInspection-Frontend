@@ -21,6 +21,7 @@ export interface DataTableColumn<T> {
   render: (row: T) => ReactNode;
   width?: string | number;
   align?: 'left' | 'right' | 'center';
+  noWrap?: boolean;
 }
 
 interface DataTableProps<T> {
@@ -34,6 +35,9 @@ interface DataTableProps<T> {
   onRowClick?: (row: T) => void;
   emptyMessage?: string;
   actions?: ReactNode;
+  dense?: boolean;
+  maxHeight?: number | string;
+  stickyHeader?: boolean;
 }
 
 export function DataTable<T>({
@@ -47,6 +51,9 @@ export function DataTable<T>({
   onRowClick,
   emptyMessage = 'No records found',
   actions,
+  dense = false,
+  maxHeight,
+  stickyHeader = false,
 }: DataTableProps<T>) {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
@@ -67,8 +74,8 @@ export function DataTable<T>({
         bgcolor: 'background.paper',
         border: '1px solid',
         borderColor: 'divider',
-        borderRadius: '16px',
-        boxShadow: '0 1px 3px 0 rgba(16, 24, 40, 0.05), 0 1px 2px 0 rgba(16, 24, 40, 0.03)',
+        borderRadius: '10px',
+        boxShadow: '0 1px 3px 0 rgba(16, 24, 40, 0.04)',
       }}
     >
       {(title || searchable || actions) && (
@@ -77,16 +84,16 @@ export function DataTable<T>({
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            px: { xs: 2, sm: 3 },
-            py: 2.25,
+            px: { xs: 2, sm: 2.5 },
+            py: 1.75,
             flexWrap: 'wrap',
-            gap: 2,
+            gap: 1.5,
             borderBottom: '1px solid',
             borderColor: 'divider',
           }}
         >
           {title ? (
-            <Typography sx={{ fontSize: '1.125rem', fontWeight: 700, color: 'text.primary' }}>
+            <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: 'text.primary' }}>
               {title}
             </Typography>
           ) : (
@@ -114,12 +121,12 @@ export function DataTable<T>({
                   },
                 }}
                 sx={{
-                  width: { xs: '100%', sm: 260 },
+                  width: { xs: '100%', sm: 240 },
                   '& .MuiOutlinedInput-root': {
-                    height: 40,
-                    borderRadius: '10px',
+                    height: 36,
+                    borderRadius: '8px',
                     bgcolor: 'background.paper',
-                    fontSize: '14px',
+                    fontSize: '13px',
                     borderColor: 'divider',
                   },
                 }}
@@ -130,8 +137,16 @@ export function DataTable<T>({
         </Box>
       )}
 
-      <TableContainer sx={{ overflowX: 'auto' }}>
-        <Table aria-label={title ?? 'Data table'}>
+      <TableContainer
+        sx={{
+          overflowX: 'auto',
+          maxHeight: maxHeight,
+          scrollbarWidth: 'thin',
+          '&::-webkit-scrollbar': { height: 6, width: 6 },
+          '&::-webkit-scrollbar-thumb': { bgcolor: 'divider', borderRadius: 3 },
+        }}
+      >
+        <Table aria-label={title ?? 'Data table'} stickyHeader={stickyHeader || Boolean(maxHeight)} size={dense ? 'small' : 'medium'}>
           <TableHead>
             <TableRow>
               {columns.map((column) => (
@@ -142,14 +157,15 @@ export function DataTable<T>({
                   sx={{
                     bgcolor: 'background.default',
                     color: 'text.secondary',
-                    fontSize: '0.75rem',
-                    fontWeight: 600,
+                    fontSize: '0.72rem',
+                    fontWeight: 700,
                     letterSpacing: '0.04em',
                     textTransform: 'uppercase',
-                    py: 1.5,
-                    px: 2.5,
+                    py: dense ? 1 : 1.25,
+                    px: dense ? 1.5 : 2,
                     borderBottom: '1px solid',
                     borderColor: 'divider',
+                    whiteSpace: column.noWrap ? 'nowrap' : 'normal',
                   }}
                 >
                   {column.label}
@@ -161,7 +177,7 @@ export function DataTable<T>({
             {paged.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={columns.length}>
-                  <Typography color="text.secondary" sx={{ py: 6, textAlign: 'center', fontSize: '0.9rem' }}>
+                  <Typography color="text.secondary" sx={{ py: 6, textAlign: 'center', fontSize: '0.88rem' }}>
                     {emptyMessage}
                   </Typography>
                 </TableCell>
@@ -188,7 +204,7 @@ export function DataTable<T>({
                   tabIndex={onRowClick ? 0 : undefined}
                   sx={{
                     cursor: onRowClick ? 'pointer' : 'default',
-                    transition: 'background-color 0.15s ease',
+                    transition: 'background-color 0.12s ease',
                     '&:hover': {
                       bgcolor: 'action.hover !important',
                     },
@@ -199,12 +215,13 @@ export function DataTable<T>({
                       key={column.id}
                       align={column.align}
                       sx={{
-                        py: 2,
-                        px: 2.5,
-                        fontSize: '0.875rem',
+                        py: dense ? 1 : 1.25,
+                        px: dense ? 1.5 : 2,
+                        fontSize: '0.85rem',
                         color: 'text.primary',
                         borderBottom: '1px solid',
                         borderColor: 'divider',
+                        whiteSpace: column.noWrap ? 'nowrap' : 'normal',
                       }}
                     >
                       {column.render(row)}
@@ -227,14 +244,14 @@ export function DataTable<T>({
           setRowsPerPage(parseInt(event.target.value, 10));
           setPage(0);
         }}
-        rowsPerPageOptions={[5, 10, 25]}
+        rowsPerPageOptions={[10, 25, 50, 100]}
         sx={{
           borderTop: '1px solid',
           borderColor: 'divider',
           color: 'text.secondary',
           px: 2,
           '& .MuiTablePagination-selectLabel, & .MuiTablePagination-displayedRows': {
-            fontSize: '0.875rem',
+            fontSize: '0.82rem',
             color: 'text.secondary',
           },
         }}

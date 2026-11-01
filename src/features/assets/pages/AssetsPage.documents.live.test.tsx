@@ -77,6 +77,9 @@ vi.mock('@/features/inspections/hooks/useInspections', () => ({
   useInspections: () => ({ data: { items: [], totalCount: 0, page: 1, pageSize: 100, totalPages: 1 }, isLoading: false, error: null }),
   useInspection: () => ({ data: null, isLoading: false, isError: false }),
   useCreateInspection: () => ({ mutate: vi.fn(), isPending: false, isError: false, error: null }),
+  useFieldSessions: () => ({ data: [], isLoading: false, isError: false }),
+  useRescheduleInspection: () => ({ mutate: vi.fn(), isPending: false, isError: false, error: null }),
+  useCancelInspection: () => ({ mutate: vi.fn(), isPending: false, isError: false, error: null }),
 }));
 
 import { AssetsPage } from './AssetsPage';

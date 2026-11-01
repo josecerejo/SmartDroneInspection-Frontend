@@ -100,14 +100,22 @@ export function RequestChatPanel({ request, onChanged, onError }: RequestChatPan
       <Box
         ref={scrollRef}
         sx={{
-          p: 2,
-          minHeight: 280,
-          maxHeight: 380,
+          p: { xs: 2, sm: 2.5 },
+          minHeight: 340,
+          maxHeight: { xs: 420, md: 520 },
           overflowY: 'auto',
           bgcolor: (theme) => (theme.palette.mode === 'dark' ? 'background.default' : '#f8fafc'),
           display: 'flex',
           flexDirection: 'column',
-          gap: 1.5,
+          gap: 2,
+          scrollBehavior: 'smooth',
+          '&::-webkit-scrollbar': {
+            width: 6,
+          },
+          '&::-webkit-scrollbar-thumb': {
+            bgcolor: 'divider',
+            borderRadius: 3,
+          },
         }}
       >
         {request.messages.length === 0 ? (
@@ -118,16 +126,16 @@ export function RequestChatPanel({ request, onChanged, onError }: RequestChatPan
               alignItems: 'center',
               justifyContent: 'center',
               my: 'auto',
-              py: 4,
+              py: 6,
               color: 'text.secondary',
             }}
           >
-            <ForumOutlinedIcon sx={{ fontSize: 44, opacity: 0.3, mb: 1 }} />
+            <ForumOutlinedIcon sx={{ fontSize: 48, opacity: 0.25, mb: 1.5 }} />
             <Typography variant="body2" sx={{ fontWeight: 600 }}>
               Chưa có tin nhắn đàm phán nào
             </Typography>
-            <Typography variant="caption" sx={{ maxWidth: 360, textAlign: 'center', mt: 0.5 }}>
-              Gửi tin nhắn hoặc chọn gợi ý bên dưới để làm rõ điều kiện bay, khung giờ và chi phí với đối tác.
+            <Typography variant="caption" sx={{ maxWidth: 380, textAlign: 'center', mt: 0.75, color: 'text.secondary' }}>
+              Gửi tin nhắn hoặc chọn gợi ý nhanh bên dưới để làm rõ điều kiện bay, khung giờ và chi phí với đối tác.
             </Typography>
           </Box>
         ) : (
@@ -143,7 +151,7 @@ export function RequestChatPanel({ request, onChanged, onError }: RequestChatPan
                   display: 'flex',
                   flexDirection: 'column',
                   alignSelf: isMe ? 'flex-end' : 'flex-start',
-                  maxWidth: { xs: '88%', sm: '75%' },
+                  maxWidth: { xs: '90%', sm: '78%' },
                 }}
               >
                 <Stack
@@ -174,7 +182,7 @@ export function RequestChatPanel({ request, onChanged, onError }: RequestChatPan
                       sx={{ height: 18, fontSize: '0.68rem', fontWeight: 600 }}
                     />
                   )}
-                  <Typography variant="caption" color="text.secondary">
+                  <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.72rem' }}>
                     {new Date(message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </Typography>
                 </Stack>
@@ -182,16 +190,34 @@ export function RequestChatPanel({ request, onChanged, onError }: RequestChatPan
                 <Paper
                   elevation={0}
                   sx={{
-                    p: 1.5,
+                    px: 2,
+                    py: 1.25,
                     borderRadius: isMe ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
-                    bgcolor: isMe ? 'primary.main' : 'background.paper',
+                    bgcolor: (theme) =>
+                      isMe
+                        ? theme.palette.mode === 'dark'
+                          ? 'primary.main'
+                          : 'primary.main'
+                        : theme.palette.mode === 'dark'
+                          ? 'background.paper'
+                          : '#ffffff',
                     color: isMe ? 'primary.contrastText' : 'text.primary',
                     border: isMe ? 'none' : '1px solid',
                     borderColor: 'divider',
-                    boxShadow: isMe ? '0 2px 6px rgba(2, 106, 162, 0.25)' : '0 1px 3px rgba(0,0,0,0.05)',
+                    boxShadow: isMe
+                      ? '0 2px 6px rgba(0, 109, 119, 0.2)'
+                      : '0 1px 3px rgba(0,0,0,0.04)',
                   }}
                 >
-                  <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', lineHeight: 1.5 }}>
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      whiteSpace: 'pre-wrap',
+                      wordBreak: 'break-word',
+                      lineHeight: 1.55,
+                      fontSize: '0.88rem',
+                    }}
+                  >
                     {message.body}
                   </Typography>
                 </Paper>
@@ -202,8 +228,26 @@ export function RequestChatPanel({ request, onChanged, onError }: RequestChatPan
       </Box>
 
       {/* Quick Prompts Bar */}
-      <Box sx={{ px: 2, pt: 1, pb: 0.5, bgcolor: 'background.paper' }}>
-        <Stack direction="row" spacing={0.75} sx={{ overflowX: 'auto', pb: 0.5 }}>
+      <Box
+        sx={{
+          px: 2,
+          py: 1,
+          bgcolor: 'background.paper',
+          borderTop: '1px solid',
+          borderColor: 'divider',
+        }}
+      >
+        <Stack
+          direction="row"
+          spacing={1}
+          sx={{
+            overflowX: 'auto',
+            py: 0.5,
+            scrollbarWidth: 'none',
+            '&::-webkit-scrollbar': { display: 'none' },
+            msOverflowStyle: 'none',
+          }}
+        >
           {QUICK_PROMPTS.map((prompt, i) => (
             <Chip
               key={i}
@@ -213,7 +257,17 @@ export function RequestChatPanel({ request, onChanged, onError }: RequestChatPan
               onClick={() => {
                 setBody((prev) => (prev ? `${prev}\n${prompt}` : prompt));
               }}
-              sx={{ fontSize: '0.75rem', height: 26, bgcolor: 'action.hover' }}
+              sx={{
+                fontSize: '0.78rem',
+                height: 28,
+                bgcolor: 'action.hover',
+                border: '1px solid',
+                borderColor: 'divider',
+                flexShrink: 0,
+                '&:hover': {
+                  bgcolor: 'action.selected',
+                },
+              }}
             />
           ))}
         </Stack>

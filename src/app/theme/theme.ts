@@ -99,6 +99,20 @@ export const theme = createTheme({
         '::selection': {
           backgroundColor: 'color-mix(in srgb, var(--mui-palette-primary-main) 20%, transparent)',
         },
+        '*::-webkit-scrollbar': {
+          width: 7,
+          height: 7,
+        },
+        '*::-webkit-scrollbar-track': {
+          background: 'transparent',
+        },
+        '*::-webkit-scrollbar-thumb': {
+          backgroundColor: 'rgba(148, 163, 184, 0.3)',
+          borderRadius: 4,
+        },
+        '*::-webkit-scrollbar-thumb:hover': {
+          backgroundColor: 'rgba(148, 163, 184, 0.55)',
+        },
       },
     },
     MuiButton: {
@@ -156,8 +170,11 @@ export const theme = createTheme({
           fontWeight: 650,
           backgroundColor: 'var(--mui-palette-background-default)',
           borderBottomColor: 'var(--mui-palette-divider)',
+          whiteSpace: 'nowrap',
         },
-        body: { borderBottomColor: 'var(--mui-palette-divider)' },
+        body: {
+          borderBottomColor: 'var(--mui-palette-divider)',
+        },
       },
     },
     MuiChip: {

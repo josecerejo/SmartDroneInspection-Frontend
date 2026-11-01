@@ -50,6 +50,7 @@ const mocks = vi.hoisted(() => ({
   },
   verifyVersion: {
     mutate: vi.fn(),
+    mutateAsync: vi.fn().mockResolvedValue(undefined),
     isPending: false,
     isError: false,
     error: null as Error | null,
