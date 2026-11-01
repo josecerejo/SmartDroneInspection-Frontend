@@ -153,8 +153,11 @@ export interface UnreadChatNotification {
 export function useUnreadChatSummary() {
   const currentUser = useAuthStore((state) => state.user);
   const status = useAuthStore((state) => state.status);
+  const roles = useAuthStore((state) => state.roles);
   const isAuth = status === 'authenticated' && Boolean(currentUser);
-  const { data: requests = [] } = useServiceRequests(isAuth);
+  const canAccessContracts =
+    isAuth && (roles.includes('CUSTOMER') || roles.includes('MANAGER') || roles.includes('ADMIN'));
+  const { data: requests = [] } = useServiceRequests(canAccessContracts, canAccessContracts);
 
   return useMemo(() => {
     if (!isAuth || !currentUser) {

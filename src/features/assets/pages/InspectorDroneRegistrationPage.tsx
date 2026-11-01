@@ -27,6 +27,7 @@ import {
 } from '../api/mf1DroneApi';
 import { PageHeader } from '@/shared/ui/PageHeader';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
+import { useAuthStore } from '@/features/auth/store/authStore';
 
 interface DroneFormState {
   droneName: string;
@@ -90,15 +91,20 @@ export default function InspectorDroneRegistrationPage() {
   const [message, setMessage] = useState<string | null>(null);
 
   const queryClient = useQueryClient();
+  const isInspector = useAuthStore((state) => state.roles).includes('INSPECTOR');
   const applications = useQuery({
     queryKey: ['inspector-drone-applications'],
     queryFn: mf1DroneApi.mine,
-    refetchInterval: 4000,
+    enabled: isInspector,
+    refetchInterval: isInspector ? 10000 : false,
+    retry: false,
   });
   const drones = useQuery({
     queryKey: ['inspector-drones'],
     queryFn: mf1DroneApi.drones,
-    refetchInterval: 4000,
+    enabled: isInspector,
+    refetchInterval: isInspector ? 10000 : false,
+    retry: false,
   });
 
   const submit = useMutation({
