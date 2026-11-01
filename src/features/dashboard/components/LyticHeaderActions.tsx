@@ -61,7 +61,7 @@ export const DashboardHeaderActions: React.FC<DashboardHeaderActionsProps> = ({
               size="small"
               onClick={() => onRoleChange(r.id)}
               sx={{
-                fontSize: '12px',
+                fontSize: '0.75rem',
                 fontWeight: isActive ? 600 : 500,
                 color: isActive ? 'primary.contrastText' : 'text.secondary',
                 bgcolor: isActive ? 'primary.main' : 'transparent',
@@ -70,7 +70,7 @@ export const DashboardHeaderActions: React.FC<DashboardHeaderActionsProps> = ({
                 py: 0.5,
                 minHeight: 28,
                 textTransform: 'none',
-                boxShadow: isActive ? '0 1px 2px 0 rgb(87 80 241 / 0.3)' : 'none',
+                boxShadow: 'none',
                 '&:hover': {
                   bgcolor: isActive ? 'primary.dark' : 'action.hover',
                 },
@@ -110,6 +110,7 @@ export const DashboardHeaderActions: React.FC<DashboardHeaderActionsProps> = ({
 
       {/* Date Range Picker Button */}
       <Button
+        aria-label={t('Reporting period')}
         startIcon={<CalendarTodayOutlined sx={{ fontSize: 16 }} />}
         sx={{
           height: 40,
@@ -119,19 +120,20 @@ export const DashboardHeaderActions: React.FC<DashboardHeaderActionsProps> = ({
           borderColor: 'divider',
           bgcolor: 'background.paper',
           color: 'text.primary',
-          fontSize: '13px',
+          fontSize: '0.875rem',
           fontWeight: 500,
           textTransform: 'none',
           boxShadow: 'none',
           '&:hover': { bgcolor: 'action.hover' },
         }}
       >
-        {`${t('Năm')} ${new Date().getFullYear()} (01/01 - ${String(new Date().getDate()).padStart(2, '0')}/${String(new Date().getMonth() + 1).padStart(2, '0')})`}
+        {`${t('Year')} ${new Date().getFullYear()} (01/01 - ${String(new Date().getDate()).padStart(2, '0')}/${String(new Date().getMonth() + 1).padStart(2, '0')})`}
       </Button>
 
       {/* Export Button */}
       <Button
         onClick={onExport}
+        aria-label={t('Export dashboard')}
         startIcon={<FileDownloadOutlined sx={{ fontSize: 18 }} />}
         sx={{
           height: 40,
@@ -139,7 +141,7 @@ export const DashboardHeaderActions: React.FC<DashboardHeaderActionsProps> = ({
           borderRadius: '8px',
           bgcolor: 'primary.main',
           color: 'primary.contrastText',
-          fontSize: '13px',
+          fontSize: '0.875rem',
           fontWeight: 500,
           textTransform: 'none',
           boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',

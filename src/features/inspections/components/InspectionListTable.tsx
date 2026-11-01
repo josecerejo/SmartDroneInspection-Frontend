@@ -15,6 +15,7 @@ import {
 } from '@mui/material';
 import ArrowForwardRounded from '@mui/icons-material/ArrowForwardRounded';
 import type { InspectionListItem, PendingAction } from '../api/inspectionApi';
+import { resolveInspectionMetadata, resolveInspectorFinanceBreakdown } from '../utils/inspectorFinance';
 import { StatusChip } from '@/shared/ui/StatusChip';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 
@@ -82,7 +83,7 @@ export function InspectionListTable({
   reviewerMode = false,
   getActionLabel,
 }: InspectionListTableProps) {
-  const { t, formatDate: formatDateValue } = useLocale();
+  const { t, formatDate: formatDateValue, formatNumber } = useLocale();
   return (
     <Paper
       variant="outlined"
@@ -91,7 +92,7 @@ export function InspectionListTable({
         bgcolor: 'background.paper',
         border: '1px solid',
         borderColor: 'divider',
-        borderRadius: '12px',
+        borderRadius: '10px',
         boxShadow: 'none',
       }}
     >
@@ -131,7 +132,7 @@ export function InspectionListTable({
                   borderColor: 'divider',
                 }}
               >
-                {reviewerMode ? 'Inspection' : 'Objective'}
+                {reviewerMode ? t('Inspection') : t('Asset & Mission Scope')}
               </TableCell>
               {!reviewerMode && (
                 <>
@@ -145,7 +146,7 @@ export function InspectionListTable({
                       px: 2,
                       borderBottom: '1px solid',
                       borderColor: 'divider',
-                      width: 170,
+                      width: 140,
                     }}
                   >
                     {t('Status')}
@@ -160,7 +161,23 @@ export function InspectionListTable({
                       px: 2,
                       borderBottom: '1px solid',
                       borderColor: 'divider',
-                      width: 180,
+                      width: 200,
+                    }}
+                  >
+                    {t('Order & Net Payout')}
+                  </TableCell>
+                  <TableCell
+                    sx={{
+                      bgcolor: 'background.default',
+                      color: 'text.secondary',
+                      fontSize: '0.875rem',
+                      fontWeight: 500,
+                      py: 1.5,
+                      px: 2,
+                      borderBottom: '1px solid',
+                      borderColor: 'divider',
+                      width: 150,
+                      display: { xs: 'none', lg: 'table-cell' },
                     }}
                   >
                     {t('Updated')}
@@ -205,14 +222,16 @@ export function InspectionListTable({
           <TableBody>
             {rows.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={reviewerMode ? 3 : showReportColumn ? 5 : 4}>
-                  <Typography color="text.secondary" sx={{ py: 6, textAlign: 'center', fontSize: '0.9rem' }}>
+                <TableCell colSpan={reviewerMode ? 3 : showReportColumn ? 6 : 5}>
+                  <Typography color="text.secondary" sx={{ py: 6, textAlign: 'center', fontSize: '0.875rem' }}>
                     {t('No inspections match this view yet.')}
                   </Typography>
                 </TableCell>
               </TableRow>
             ) : (
               rows.map((row) => {
+                const finance = resolveInspectorFinanceBreakdown(row.id, row);
+                const meta = resolveInspectionMetadata(row);
                 return (
                   <TableRow
                     key={row.id}
@@ -248,44 +267,71 @@ export function InspectionListTable({
                         borderColor: 'divider',
                       }}
                     >
-                      <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+                      <Stack spacing={0.5}>
+                        <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
+                          <Typography
+                            variant="body2"
+                            sx={{
+                              fontWeight: 600,
+                              color: 'text.primary',
+                              lineHeight: 1.4,
+                              maxWidth: 500,
+                            }}
+                          >
+                            {meta.displayName}
+                          </Typography>
+                          {meta.assetCode && (
+                            <Chip
+                              size="small"
+                              label={meta.assetCode}
+                              variant="outlined"
+                              sx={{
+                                height: 18,
+                                borderRadius: '4px',
+                                fontSize: '0.75rem',
+                                fontFamily: 'monospace',
+                                fontWeight: 600,
+                              }}
+                            />
+                          )}
+                          {row.inspectionType === 'RE_INSPECTION' && (
+                            <Chip
+                              size="small"
+                              color="secondary"
+                              label={t('Re-inspection')}
+                              sx={{ height: 18, fontSize: '0.75rem', fontWeight: 700 }}
+                            />
+                          )}
+                        </Stack>
+
+                        {meta.objective && (
+                          <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>
+                            {meta.objective}
+                          </Typography>
+                        )}
+
+                        {reviewerMode && (
+                          <Typography variant="caption" color="text.secondary" component="span" sx={{ display: 'block' }}>
+                            {t('Asset')} {row.assetId.slice(0, 8)}{t('… · Inspector')} {row.inspectorId.slice(0, 8)}…
+                          </Typography>
+                        )}
+
                         <Typography
-                          variant="body2"
+                          variant="caption"
                           sx={{
-                            fontWeight: 600,
-                            color: 'text.primary',
-                            lineHeight: 1.4,
-                            maxWidth: 500,
+                            color: 'text.secondary',
+                            fontFamily: 'monospace',
+                            fontSize: '0.75rem',
+                            display: 'block',
+                            fontVariantNumeric: 'tabular-nums',
                           }}
                         >
-                          {row.objective || `${t('Inspection')} #${row.id.slice(0, 8)}`}
+                          #{row.id.slice(0, 8)}
+                          {row.plannedStartAt
+                            ? ` · ${formatDate(row.plannedStartAt, formatDateValue)}`
+                            : ''}
                         </Typography>
-                        {row.inspectionType === 'RE_INSPECTION' && (
-                          <Chip
-                            size="small"
-                            color="secondary"
-                            label={t('Re-inspection')}
-                            sx={{ height: 18, fontSize: '0.65rem', fontWeight: 700 }}
-                          />
-                        )}
                       </Stack>
-                      {reviewerMode && (
-                        <Typography variant="caption" color="text.secondary" component="span" sx={{ display: 'block', mt: 0.5 }}>
-                          {t('Asset')} {row.assetId.slice(0, 8)}{t('… · Inspector')} {row.inspectorId.slice(0, 8)}…
-                        </Typography>
-                      )}
-                      <Typography
-                        variant="caption"
-                        sx={{
-                          color: 'text.secondary',
-                          fontFamily: 'monospace',
-                          fontSize: '11px',
-                          display: 'block',
-                          mt: 0.25,
-                        }}
-                      >
-                        {row.id.slice(0, 8)}…
-                      </Typography>
                     </TableCell>
 
                     {!reviewerMode && (
@@ -305,11 +351,52 @@ export function InspectionListTable({
                         sx={{
                           py: 2,
                           px: 2,
+                          borderBottom: '1px solid',
+                          borderColor: 'divider',
+                        }}
+                      >
+                        {finance ? (
+                          <Stack spacing={0.25}>
+                            <Typography
+                              variant="body2"
+                              sx={{
+                                fontWeight: 700,
+                                color: '#176B52',
+                                fontSize: '0.875rem',
+                                fontVariantNumeric: 'tabular-nums',
+                              }}
+                            >
+                              {t('Net')}: {formatNumber(finance.netPayoutAmount)} ₫
+                            </Typography>
+                            <Typography
+                              variant="caption"
+                              sx={{
+                                color: 'text.secondary',
+                                fontVariantNumeric: 'tabular-nums',
+                                whiteSpace: 'nowrap',
+                              }}
+                            >
+                              {t('Order')}: {formatNumber(finance.totalPrice)} ₫ (-
+                              {finance.commissionRate}% {t('comm.')})
+                            </Typography>
+                          </Stack>
+                        ) : (
+                          <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                            {t('Standard rate')}
+                          </Typography>
+                        )}
+                      </TableCell>
+
+                      <TableCell
+                        sx={{
+                          py: 2,
+                          px: 2,
                           color: 'text.secondary',
                           fontSize: '0.875rem',
                           borderBottom: '1px solid',
                           borderColor: 'divider',
                           whiteSpace: 'nowrap',
+                          display: { xs: 'none', lg: 'table-cell' },
                         }}
                       >
                         {formatDate(row.updatedAt, formatDateValue)}
@@ -340,10 +427,10 @@ export function InspectionListTable({
                               sx={{
                                 px: 0.75,
                                 py: '1px',
-                                borderRadius: '4px',
+                                borderRadius: '5px',
                                 bgcolor: 'action.hover',
                                 color: 'text.primary',
-                                fontSize: '11px',
+                                fontSize: '0.75rem',
                                 fontWeight: 600,
                               }}
                             >

@@ -71,7 +71,7 @@ export const LyticStackedBarChart: React.FC<LyticStackedBarChartProps> = ({
         <Typography
           sx={{
             color: 'text.primary',
-            fontSize: '18px',
+            fontSize: '1rem',
             fontWeight: 600,
           }}
         >
@@ -103,8 +103,8 @@ export const LyticStackedBarChart: React.FC<LyticStackedBarChartProps> = ({
       >
         {channels.map((ch) => (
           <Box key={ch.name} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: ch.color }} />
-            <Typography sx={{ color: 'text.secondary', fontSize: '12px' }}>
+            <Box sx={{ width: 8, height: 8, borderRadius: '999px', bgcolor: ch.color }} />
+            <Typography sx={{ color: 'text.secondary', fontSize: '0.75rem' }}>
               {t(ch.name)}
             </Typography>
           </Box>
@@ -112,11 +112,11 @@ export const LyticStackedBarChart: React.FC<LyticStackedBarChartProps> = ({
       </Box>
 
       {/* Chart SVG */}
-      <Box sx={{ width: '100%', position: 'relative', flexGrow: 1, minHeight: 220 }}>
+      <Box sx={{ width: '100%', position: 'relative', flexGrow: 1, minHeight: 220, display: 'flex', alignItems: 'center' }}>
         <svg
           viewBox={`0 0 ${svgWidth} ${svgHeight}`}
-          preserveAspectRatio="none"
-          style={{ width: '100%', height: '100%', overflow: 'visible' }}
+          preserveAspectRatio="xMidYMid meet"
+          style={{ width: '100%', height: 'auto', maxHeight: 280, overflow: 'visible' }}
         >
           {/* Horizontal Gridlines & Y-Axis Labels */}
           {yTicks.map((tick, i) => {
@@ -216,18 +216,18 @@ export const LyticStackedBarChart: React.FC<LyticStackedBarChartProps> = ({
               color: 'background.paper',
               borderRadius: '8px',
               p: 1.25,
-              fontSize: '11px',
+              fontSize: '0.75rem',
               boxShadow: '0 4px 6px -1px rgba(0,0,0,0.2)',
               pointerEvents: 'none',
               zIndex: 10,
             }}
           >
-            <Typography sx={{ fontWeight: 600, fontSize: '11px', mb: 0.5 }}>
+            <Typography sx={{ fontWeight: 600, fontSize: '0.75rem', mb: 0.5 }}>
               {categories[hoverIdx]}
             </Typography>
             {channels.map((ch) => (
               <Box key={ch.name} sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.25 }}>
-                <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: ch.color }} />
+                <Box sx={{ width: 6, height: 6, borderRadius: '999px', bgcolor: ch.color }} />
                 <span>{ch.name}: {ch.data[hoverIdx]}</span>
               </Box>
             ))}

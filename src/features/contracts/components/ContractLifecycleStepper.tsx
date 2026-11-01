@@ -1,18 +1,20 @@
 import { Box, Step, StepLabel, Stepper, Typography } from '@mui/material';
+import { useLocale } from '@/shared/i18n/LocaleProvider';
 
 interface ContractLifecycleStepperProps {
   status: string;
 }
 
 const STEPS = [
-  { key: 'OPEN', label: '1. Gửi yêu cầu', desc: 'Khách hàng tạo yêu cầu kiểm định' },
-  { key: 'QUOTED', label: '2. Báo giá & Đàm phán', desc: 'Trao đổi chi phí, phi công & drone' },
-  { key: 'ACCEPTED', label: '3. Chấp thuận điều khoản', desc: 'Khách hàng duyệt báo giá dịch vụ' },
-  { key: 'CONTRACT_SIGNED', label: '4. Ký kết hợp đồng', desc: 'Tải văn bản hợp đồng có chữ ký' },
-  { key: 'ASSIGNED', label: '5. Phân công bay', desc: 'Sẵn sàng triển khai kiểm định' },
+  { key: 'OPEN', label: '1. Submit request', desc: 'Customer creates inspection request' },
+  { key: 'QUOTED', label: '2. Quote & negotiation', desc: 'Agree fee, pilot & drone terms' },
+  { key: 'ACCEPTED', label: '3. Accept terms', desc: 'Customer approves service quote' },
+  { key: 'CONTRACT_SIGNED', label: '4. Signed contract', desc: 'Upload signed paper contract' },
+  { key: 'ASSIGNED', label: '5. Flight dispatch', desc: 'Assigned & ready for field survey' },
 ];
 
 export function ContractLifecycleStepper({ status }: ContractLifecycleStepperProps) {
+  const { t } = useLocale();
   const getActiveStep = () => {
     switch (status) {
       case 'OPEN':
@@ -37,7 +39,7 @@ export function ContractLifecycleStepper({ status }: ContractLifecycleStepperPro
       sx={{
         p: { xs: 2, sm: 2.5 },
         bgcolor: 'background.paper',
-        borderRadius: 3,
+        borderRadius: '16px',
         border: '1px solid',
         borderColor: 'divider',
         boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
@@ -49,7 +51,7 @@ export function ContractLifecycleStepper({ status }: ContractLifecycleStepperPro
         sx={{
           '& .MuiStepLabel-label': {
             fontWeight: 600,
-            fontSize: '0.85rem',
+            fontSize: '0.875rem',
             mt: 0.5,
           },
           '& .MuiStepLabel-label.Mui-active': {
@@ -65,14 +67,14 @@ export function ContractLifecycleStepper({ status }: ContractLifecycleStepperPro
           <Step key={step.key} completed={idx < activeStep || status === 'ASSIGNED'}>
             <StepLabel>
               <Typography variant="body2" sx={{ fontWeight: 700 }}>
-                {step.label}
+                {t(step.label)}
               </Typography>
               <Typography
                 variant="caption"
                 color="text.secondary"
                 sx={{ display: { xs: 'none', md: 'block' }, fontSize: '0.75rem', mt: 0.25 }}
               >
-                {step.desc}
+                {t(step.desc)}
               </Typography>
             </StepLabel>
           </Step>

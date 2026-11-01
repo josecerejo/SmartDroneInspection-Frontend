@@ -403,4 +403,51 @@ describe('InspectionsPage', () => {
     expect(screen.getByRole('button', { name: 'Week' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Agenda' })).toBeTruthy();
   });
+
+  it('renders dedicated Customer Inspections & Deliverables Ledger on /client/inspections with report, VND fee, and non-hijacked View report navigation', async () => {
+    signInAs(['CUSTOMER']);
+    mocks.listQuery = {
+      data: {
+        items: [
+          {
+            ...listedInspection(),
+            id: 'cust-pub-1',
+            assetName: 'Ba Son Cable-Stayed Bridge',
+            assetCode: 'BR-BASON-01',
+            assetLocation: 'District 1, Ho Chi Minh City',
+            objective: 'Main Pylon & Stay-Cable Survey',
+            status: 'COMPLETED',
+            reportId: 'report-pub-1',
+            reportStatus: 'PUBLISHED',
+            reportVersionNo: 1,
+            reportAccepted: false,
+            paymentStatus: 'PAYMENT_DUE',
+            paymentAmount: 4500000,
+            pendingAction: 'CORRECTIVE_DISPOSITION',
+          },
+        ],
+        page: 1,
+        pageSize: 10,
+        totalCount: 1,
+        totalPages: 1,
+      },
+      isLoading: false,
+      error: null,
+      refetch: vi.fn(),
+    };
+
+    renderPage('/client/inspections');
+
+    expect((await screen.findAllByText('Ba Son Cable-Stayed Bridge')).length).toBeGreaterThan(0);
+    expect(screen.getAllByText('BR-BASON-01').length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Report ready · v1/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/4,500,000 ₫/).length).toBeGreaterThan(0);
+
+    // Clicking "View report" must navigate to /report, never hijacked to /corrective
+    fireEvent.click(screen.getAllByRole('button', { name: /View report/i })[0]!);
+    expect(screen.getByTestId('location')).toHaveProperty(
+      'textContent',
+      '/client/inspections/cust-pub-1/report',
+    );
+  });
 });

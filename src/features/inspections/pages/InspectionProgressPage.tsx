@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   Alert,
@@ -21,11 +22,16 @@ import RadioButtonCheckedRounded from '@mui/icons-material/RadioButtonCheckedRou
 import RadioButtonUncheckedRounded from '@mui/icons-material/RadioButtonUncheckedRounded';
 import FlightTakeoffRounded from '@mui/icons-material/FlightTakeoffRounded';
 import DescriptionOutlined from '@mui/icons-material/DescriptionOutlined';
+import PaidOutlined from '@mui/icons-material/PaidOutlined';
 import PlaceOutlined from '@mui/icons-material/PlaceOutlined';
 import PersonOutlineRounded from '@mui/icons-material/PersonOutlineRounded';
 import AirplanemodeActiveRounded from '@mui/icons-material/AirplanemodeActiveRounded';
 import AutoAwesomeOutlined from '@mui/icons-material/AutoAwesomeOutlined';
 import AssignmentTurnedInOutlined from '@mui/icons-material/AssignmentTurnedInOutlined';
+import {
+  inspectionApi,
+  type ReportPaymentStatusDetails,
+} from '../api/inspectionApi';
 import {
   useInspection,
   useInspectionEvidence,
@@ -49,6 +55,23 @@ export default function InspectionProgressPage() {
   const versionsQuery = useReportVersions(inspectionId);
   const publishedVersion = versionsQuery.data?.find((v) => v.status === 'PUBLISHED');
   const hasPublishedVersion = Boolean(publishedVersion);
+
+  const [paymentDetails, setPaymentDetails] = useState<ReportPaymentStatusDetails | null>(null);
+  useEffect(() => {
+    if (!inspectionId || typeof inspectionApi?.getReportPaymentStatus !== 'function') return;
+    let active = true;
+    inspectionApi
+      .getReportPaymentStatus(inspectionId)
+      .then((res) => {
+        if (active && res) setPaymentDetails(res);
+      })
+      .catch(() => {
+        // Optional commercial metadata
+      });
+    return () => {
+      active = false;
+    };
+  }, [inspectionId]);
 
   const status = workflow?.status ?? inspection?.status ?? 'SCHEDULED';
 
@@ -170,7 +193,7 @@ export default function InspectionProgressPage() {
           <Box
             sx={{
               display: 'grid',
-              gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', md: 'repeat(4, 1fr)' },
+              gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', md: 'repeat(3, 1fr)' },
               gap: 2,
             }}
           >
@@ -181,7 +204,7 @@ export default function InspectionProgressPage() {
                   {t('Target Asset')}
                 </Typography>
                 <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                  {inspection?.assetName ?? '—'}
+                  {inspection?.assetName ?? '-'}
                 </Typography>
               </Box>
             </Stack>
@@ -193,7 +216,7 @@ export default function InspectionProgressPage() {
                   {t('Assigned Pilot')}
                 </Typography>
                 <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                  {inspection?.inspectorName ?? '—'}
+                  {inspection?.inspectorName ?? '-'}
                 </Typography>
               </Box>
             </Stack>
@@ -205,7 +228,7 @@ export default function InspectionProgressPage() {
                   {t('Drone Model')}
                 </Typography>
                 <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                  {inspection?.droneModel ?? '—'}
+                  {inspection?.droneModel ?? '-'}
                 </Typography>
               </Box>
             </Stack>
@@ -216,8 +239,55 @@ export default function InspectionProgressPage() {
                 <Typography variant="caption" color="text.secondary">
                   {t('Collected Imagery')}
                 </Typography>
-                <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                <Typography variant="body2" sx={{ fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
                   {activeCaptures > 0 ? `${activeCaptures} ${t('photos')}` : t('Pending flight')}
+                </Typography>
+              </Box>
+            </Stack>
+
+            <Stack direction="row" spacing={1.25} sx={{ alignItems: 'center' }}>
+              <DescriptionOutlined color="action" />
+              <Box>
+                <Typography variant="caption" color="text.secondary">
+                  {t('Official Report Deliverable')}
+                </Typography>
+                <Typography
+                  variant="body2"
+                  sx={{
+                    fontWeight: 650,
+                    color: hasPublishedVersion ? '#176B52' : 'text.primary',
+                  }}
+                >
+                  {hasPublishedVersion
+                    ? `${t('Published')} (v${publishedVersion?.versionNo ?? 1})`
+                    : status === 'UNDER_REVIEW'
+                      ? t('In technical quality review')
+                      : t('Not yet published')}
+                </Typography>
+              </Box>
+            </Stack>
+
+            <Stack direction="row" spacing={1.25} sx={{ alignItems: 'center' }}>
+              <PaidOutlined color="action" />
+              <Box>
+                <Typography variant="caption" color="text.secondary">
+                  {t('Service Fee & Settlement')}
+                </Typography>
+                <Typography
+                  variant="body2"
+                  sx={{ fontWeight: 650, fontVariantNumeric: 'tabular-nums' }}
+                >
+                  {paymentDetails?.amount
+                    ? `${paymentDetails.amount.toLocaleString('en-US')} ₫ · ${
+                        paymentDetails.paid || paymentDetails.paymentStatus === 'PAID'
+                          ? t('Paid')
+                          : paymentDetails.paymentStatus === 'PAYMENT_DUE'
+                            ? t('Payment due')
+                            : t('Billed upon report acceptance')
+                      }`
+                    : hasPublishedVersion
+                      ? t('Ready for acceptance')
+                      : t('Billed upon report publication')}
                 </Typography>
               </Box>
             </Stack>
@@ -227,7 +297,7 @@ export default function InspectionProgressPage() {
 
       {/* Contextual Status Guidance */}
       {!hasPublishedVersion ? (
-        <Alert severity="info" sx={{ borderRadius: '12px' }}>
+        <Alert severity="info" sx={{ borderRadius: '10px' }}>
           <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.25 }}>
             {status === 'UNDER_REVIEW'
               ? t('Quality Review in Progress')
@@ -244,7 +314,7 @@ export default function InspectionProgressPage() {
       ) : (
         <Alert
           severity="success"
-          sx={{ borderRadius: '12px' }}
+          sx={{ borderRadius: '10px' }}
           action={
             <Button
               color="inherit"

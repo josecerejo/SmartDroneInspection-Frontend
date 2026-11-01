@@ -33,6 +33,8 @@ import {
   useInspectionWorkflowState,
   useReportVersions,
 } from '../hooks/useInspections';
+import { InspectorPayoutSummaryBar } from '../components/InspectorPayoutSummaryBar';
+import { resolveInspectionMetadata } from '../utils/inspectorFinance';
 
 interface WorkflowStep {
   step: number;
@@ -426,7 +428,7 @@ export default function InspectionDetailPage() {
                 sx={{ alignItems: 'center', flexWrap: 'wrap', rowGap: 0.75 }}
               >
                 <Typography variant="body2" sx={{ fontWeight: 700, color: 'text.primary' }}>
-                  {inspection.assetName ?? inspection.id}
+                  {inspection.assetName || resolveInspectionMetadata(inspection).displayName}
                 </Typography>
 
                 {inspection.inspectionType === 'RE_INSPECTION' && (
@@ -516,6 +518,12 @@ export default function InspectionDetailPage() {
           </Box>
         )}
 
+        {!isOrganizationAdmin && !isCustomer && inspection && (
+          <Box sx={{ mt: 1.5 }}>
+            <InspectorPayoutSummaryBar inspectionId={inspection.id} roleView="inspector" />
+          </Box>
+        )}
+
         {wasAborted && (
           <Alert severity="warning" sx={{ mt: 1.5, borderRadius: '10px' }}>
             <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
@@ -602,7 +610,7 @@ export default function InspectionDetailPage() {
                         borderColor: state === 'active' ? 'divider' : 'divider',
                         bgcolor: state === 'active' ? 'primary.main' : 'background.paper',
                         color: state === 'active' ? 'primary.contrastText' : 'text.secondary',
-                        fontSize: '0.8125rem',
+                        fontSize: '0.75rem',
                         fontWeight: 700,
                       }}
                     >
@@ -612,7 +620,7 @@ export default function InspectionDetailPage() {
                       <Typography component="span" sx={{ display: 'block', color: 'text.secondary', fontSize: '0.75rem', lineHeight: 1.3 }}>
                         {t(STEP_STATE_COPY[state])}
                       </Typography>
-                      <Typography component="span" sx={{ display: 'block', color: state === 'active' ? 'text.primary' : 'text.secondary', fontSize: { sm: '0.8125rem', md: '0.875rem' }, fontWeight: state === 'active' ? 700 : 600, lineHeight: 1.3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      <Typography component="span" sx={{ display: 'block', color: state === 'active' ? 'text.primary' : 'text.secondary', fontSize: '0.875rem', fontWeight: state === 'active' ? 700 : 600, lineHeight: 1.3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         {t(step.title)}
                       </Typography>
                     </Box>

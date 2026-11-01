@@ -25,6 +25,7 @@ import { InspectionListTable } from '../components/InspectionListTable';
 import { CreateInspectionDialog } from '../components/CreateInspectionDialog';
 import type { InspectionListItem } from '../api/inspectionApi';
 import { RecurringSchedulesPanel } from './RecurringSchedulesPanel';
+import { CustomerInspectionsPage } from './CustomerInspectionsPage';
 import { InspectorScheduleCalendar } from '../components/InspectorScheduleCalendar';
 import { InspectionWorkDetailDialog } from '../components/InspectionWorkDetailDialog';
 import { useInspections, useInspectionsWithReports } from '../hooks/useInspections';
@@ -93,11 +94,7 @@ export default function InspectionsPage() {
     }
     if (portal === 'client') {
       if (row?.reportStatus === 'PUBLISHED') {
-        const target =
-          row?.pendingAction === 'CORRECTIVE_DISPOSITION' && row.inspectionType !== 'RE_INSPECTION'
-            ? 'corrective'
-            : 'report';
-        navigate(`${getSectionPath(portal, 'inspections')}/${inspectionId}/${target}`);
+        navigate(`${getSectionPath(portal, 'inspections')}/${inspectionId}/report`);
         return;
       }
       navigate(`${getSectionPath(portal, 'inspections')}/${inspectionId}/tracking`);
@@ -143,17 +140,21 @@ export default function InspectionsPage() {
         borderRadius: '10px',
         px: 2.5,
         py: 1,
-        bgcolor: '#3758F9',
-        fontSize: '14px',
+        bgcolor: 'primary.main',
+        fontSize: '0.875rem',
         fontWeight: 600,
         textTransform: 'none',
         boxShadow: 'none',
-        '&:hover': { bgcolor: '#2b45cb', boxShadow: '0 1px 2px rgba(16,24,40,0.05)' },
+        '&:hover': { bgcolor: 'primary.dark', boxShadow: '0 1px 2px rgba(16,24,40,0.05)' },
       }}
     >
       {t('New inspection')}
     </Button>
   ) : undefined;
+
+  if (portal === 'client' && isOrganizationAdmin && view === 'all') {
+    return <CustomerInspectionsPage />;
+  }
 
   return (
     <Box className="workspace-page workspace-page--inspections">

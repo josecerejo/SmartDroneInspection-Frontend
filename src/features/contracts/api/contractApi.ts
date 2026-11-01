@@ -44,6 +44,17 @@ export interface ServiceRequestOccurrence {
   droneId: string | null;
   inspectionId: string | null;
   assignedAt: string | null;
+  contractFileName?: string | null;
+  contractContentType?: string | null;
+  contractSizeBytes?: number | null;
+  contractUploadedAt?: string | null;
+  currency?: string | null;
+  totalPrice?: number | null;
+  vatAmount?: number | null;
+  paymentStatus?: 'PENDING' | 'PAYMENT_DUE' | 'PAID' | string | null;
+  paymentConfirmedAt?: string | null;
+  payoutStatus?: string | null;
+  reportAcceptedAt?: string | null;
 }
 
 export interface ServiceRequest {

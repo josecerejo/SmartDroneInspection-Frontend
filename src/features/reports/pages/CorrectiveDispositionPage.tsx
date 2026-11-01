@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Link as RouterLink, useParams } from 'react-router-dom';
+import { Link as RouterLink, useLocation, useParams } from 'react-router-dom';
 import {
   Alert,
   Box,
@@ -43,6 +43,8 @@ import {
 export default function CorrectiveDispositionPage() {
   const { t } = useLocale();
   const { inspectionId = '' } = useParams<{ inspectionId: string }>();
+  const location = useLocation();
+  const isClientPortal = location.pathname.startsWith('/client/');
   const roles = useAuthStore((state) => state.roles);
   const canReview = roles.includes('CUSTOMER');
 
@@ -112,7 +114,7 @@ export default function CorrectiveDispositionPage() {
 
   if (!canReview) {
     return (
-      <Alert severity="info" sx={{ borderRadius: '12px' }}>
+      <Alert severity="info" sx={{ borderRadius: '10px' }}>
         {t('Forwarding findings to maintenance is reserved for the organization manager.')}
       </Alert>
     );
@@ -122,11 +124,11 @@ export default function CorrectiveDispositionPage() {
     <Stack spacing={2}>
       <Button
         component={RouterLink}
-        to="../review"
+        to={isClientPortal ? '../report' : '../review'}
         startIcon={<ArrowBackRounded />}
         sx={{ alignSelf: 'flex-start', color: 'text.secondary', fontWeight: 500, textTransform: 'none' }}
       >
-        {t('Back to report review')}
+        {isClientPortal ? t('Back to official report') : t('Back to report review')}
       </Button>
 
       <Paper variant="outlined" sx={{ p: { xs: 2, sm: 2.5 } }}>

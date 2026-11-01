@@ -15,10 +15,11 @@ import {
   type ServiceRequest,
 } from '../api/contractApi';
 
-export function useServiceRequests(realtime = true) {
+export function useServiceRequests(enabled = true, realtime = true) {
   return useQuery({
     queryKey: contractQueryKeys.requests(),
     queryFn: contractApi.listRequests,
+    enabled,
     refetchInterval: realtime ? 3000 : false,
     refetchIntervalInBackground: false,
   });
