@@ -32,7 +32,7 @@ const expectedAccess: Record<
     maintenance: ['ADMIN'],
     workforce: [],
     subscriptions: ['ADMIN', 'MANAGER'],
-    'platform-users': ['ADMIN'],
+    'platform-users': ['ADMIN', 'MANAGER'],
     'finance-settings': ['ADMIN'],
     'onboarding-reviews': ['ADMIN', 'MANAGER'],
     'inspector-drones': [],
