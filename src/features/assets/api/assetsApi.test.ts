@@ -7,7 +7,6 @@ vi.mock('@/shared/api/client', () => ({
 import { api } from '@/shared/api/client';
 import { assetApi } from './assetApi';
 import { catalogApi } from './catalogApi';
-import { proposalApi } from './proposalApi';
 import { documentApi } from './documentApi';
 import { droneApi } from './droneApi';
 
@@ -31,7 +30,7 @@ describe('assetApi', () => {
   });
 
   it('creates an asset without sending organizationId', async () => {
-    vi.mocked(api.post).mockResolvedValue({ data: { id: 'a1', status: 'PENDING_REVIEW' } });
+    vi.mocked(api.post).mockResolvedValue({ data: { id: 'a1', status: 'ACTIVE' } });
 
     await assetApi.create({
       code: 'BR-1',
@@ -45,78 +44,40 @@ describe('assetApi', () => {
     expect(api.post).toHaveBeenCalledWith('/assets', body);
   });
 
-  it('reviews an asset through the manager endpoint', async () => {
-    vi.mocked(api.post).mockResolvedValue({
-      data: { assetId: 'a1', status: 'ACTIVE', proposalCount: 2 },
-    });
+  it('retires an asset', async () => {
+    vi.mocked(api.post).mockResolvedValue({ data: { id: 'a1', status: 'RETIRED' } });
 
-    await assetApi.review('a1', { action: 'APPROVE', note: 'looks good' });
+    await assetApi.retire('a1');
 
-    expect(api.post).toHaveBeenCalledWith('/assets/a1/review', {
-      action: 'APPROVE',
-      note: 'looks good',
-    });
-  });
-
-  it('loads the platform review queue from the manager endpoint', async () => {
-    vi.mocked(api.get).mockResolvedValue({ data: { items: [] } });
-
-    await assetApi.listPendingReview({ page: 1, pageSize: 50 });
-
-    expect(api.get).toHaveBeenCalledWith('/assets/pending-review', {
-      params: { page: 1, pageSize: 50 },
-    });
+    expect(api.post).toHaveBeenCalledWith('/assets/a1/retire');
   });
 });
 
 describe('catalogApi', () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it('loads suggested frequencies for a category', async () => {
-    vi.mocked(api.get).mockResolvedValue({ data: [] });
+  it('lists categories', async () => {
+    const categories = [{ id: 'c1', code: 'BRIDGE', name: 'Bridge', description: null, active: true }];
+    vi.mocked(api.get).mockResolvedValue({ data: categories });
 
-    await catalogApi.listFrequencies('c1');
-
-    expect(api.get).toHaveBeenCalledWith('/asset-categories/c1/suggested-frequencies');
+    await expect(catalogApi.listCategories()).resolves.toEqual(categories);
+    expect(api.get).toHaveBeenCalledWith('/asset-categories');
   });
 
-  it('adds a suggested frequency', async () => {
-    vi.mocked(api.post).mockResolvedValue({ data: { id: 'f1' } });
+  it('creates category', async () => {
+    const created = { id: 'c1', code: 'BRIDGE', name: 'Bridge', description: null, active: true };
+    vi.mocked(api.post).mockResolvedValue({ data: created });
 
-    await catalogApi.addFrequency('c1', { frequencyUnit: 'MONTH', frequencyInterval: 3 });
-
-    expect(api.post).toHaveBeenCalledWith('/asset-categories/c1/suggested-frequencies', {
-      frequencyUnit: 'MONTH',
-      frequencyInterval: 3,
-    });
+    await expect(catalogApi.createCategory({ code: 'BRIDGE', name: 'Bridge' })).resolves.toEqual(created);
+    expect(api.post).toHaveBeenCalledWith('/asset-categories', { code: 'BRIDGE', name: 'Bridge' });
   });
 
-  it('deletes a suggested frequency', async () => {
-    vi.mocked(api.delete).mockResolvedValue({ data: undefined });
+  it('updates category', async () => {
+    const updated = { id: 'c1', code: 'BRIDGE', name: 'Bridge Updated', description: 'desc', active: true };
+    vi.mocked(api.put).mockResolvedValue({ data: updated });
 
-    await catalogApi.deleteFrequency('c1', 'f1');
-
-    expect(api.delete).toHaveBeenCalledWith('/asset-categories/c1/suggested-frequencies/f1');
-  });
-});
-
-describe('proposalApi', () => {
-  beforeEach(() => vi.clearAllMocks());
-
-  it('lists proposals for an asset', async () => {
-    vi.mocked(api.get).mockResolvedValue({ data: [] });
-
-    await proposalApi.listForAsset('a1');
-
-    expect(api.get).toHaveBeenCalledWith('/schedule-proposals', { params: { assetId: 'a1' } });
-  });
-
-  it('selects a proposal', async () => {
-    vi.mocked(api.post).mockResolvedValue({ data: { id: 'p1', status: 'ORG_ADMIN_SELECTED' } });
-
-    await proposalApi.select('p1');
-
-    expect(api.post).toHaveBeenCalledWith('/schedule-proposals/p1/select');
+    await expect(catalogApi.updateCategory('c1', { code: 'BRIDGE', name: 'Bridge Updated', description: 'desc' })).resolves.toEqual(updated);
+    expect(api.put).toHaveBeenCalledWith('/asset-categories/c1', { code: 'BRIDGE', name: 'Bridge Updated', description: 'desc' });
   });
 });
 
@@ -151,9 +112,6 @@ describe('documentApi', () => {
     vi.mocked(api.post).mockResolvedValue({ data: stored });
 
     const uploaded = await documentApi.upload('a1', new File(['x'], 'permit.png'), 'PERMIT');
-
-    // The client must carry the id the server assigned; that the server populates it is backend
-    // evidence, which this assertion cannot demonstrate.
     expect(uploaded.id).toBe('d-uuid-1');
   });
 

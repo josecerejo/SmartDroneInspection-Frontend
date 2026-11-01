@@ -61,7 +61,7 @@ function BrandLogo() {
           fontFamily: 'inherit',
         }}
       >
-        SmartDrone
+        SDI
       </Typography>
     </Box>
   );

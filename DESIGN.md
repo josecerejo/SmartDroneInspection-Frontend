@@ -115,7 +115,15 @@ SmartDroneInspection uses **Trace Ledger** for the inspection workflow: an evide
 
 - **Controls**: `8px` (`rounded.md`) on buttons and standard action triggers.
 - **Compact Chips & Steps**: `5px` (`rounded.sm`) for phone step controls and state chips.
-- **Panels & Dialogs**: `10px` (`rounded.lg`) to `16px` (`rounded.xl`) with crisp outlines.
+- **Panels & Dialogs**: `8px` to `10px` (`rounded.lg`) with crisp outlines. Large containers must never exceed `10px`.
+
+## Anti-AI UI & Enterprise Quality Standard
+
+Refer to `UI_QUALITY_STANDARD.md` for explicit coding rules against amateur AI-generated design patterns:
+- **No Card-Soup:** Do not nest Cards inside Cards. Use flat border-divided tables and key-value sections.
+- **No Over-Rounded Corners:** Maximum border radius for data containers is `10px`. Never use `16px` or `24px` for technical tables or cards.
+- **No Decorative Gradients:** All workspace/dashboard surfaces, buttons, and panels must use crisp solid colors.
+- **Zero Blurry Shadows:** Prefer border-only separation (`1px solid var(--mui-palette-divider)`) with `boxShadow: 'none'` or subtle 1px micro-shadows.
 
 ## Components
 
