@@ -50,7 +50,7 @@ export function DarkFooter() {
                   color: '#253746',
                 }}
               >
-                SmartDroneInspection
+                SDI
               </Typography>
             </Stack>
             <Typography

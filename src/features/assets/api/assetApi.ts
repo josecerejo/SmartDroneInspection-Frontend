@@ -32,16 +32,6 @@ export interface CreateAssetInput {
   inspectionItems?: string[];
 }
 
-export interface UpdateAssetInput {
-  name?: string;
-  description?: string | null;
-  locationText?: string;
-  latitude?: number | null;
-  longitude?: number | null;
-  ownershipInformation?: string | null;
-  inspectionItems?: string[];
-}
-
 export interface AssetPage {
   items: Asset[];
   page: number;
@@ -50,22 +40,10 @@ export interface AssetPage {
   totalPages: number;
 }
 
-export interface AssetReviewResponse {
-  assetId: string;
-  status: string;
-  proposalCount: number;
-}
-
-export interface AssetReviewInput {
-  action: 'APPROVE' | 'REJECT';
-  note?: string;
-}
-
 export const assetKeys = {
   all: ['assets'] as const,
   lists: () => [...assetKeys.all, 'list'] as const,
   list: (filters: AssetListFilters) => [...assetKeys.lists(), filters] as const,
-  pendingReview: () => [...assetKeys.all, 'pending-review'] as const,
   detail: (id: string) => [...assetKeys.all, 'detail', id] as const,
 };
 
@@ -73,18 +51,9 @@ export const assetApi = {
   list: (filters: AssetListFilters) =>
     api.get<AssetPage>('/assets', { params: filters }).then((r) => r.data),
 
-  listPendingReview: (filters: AssetListFilters) =>
-    api.get<AssetPage>('/assets/pending-review', { params: filters }).then((r) => r.data),
-
   getById: (id: string) => api.get<Asset>(`/assets/${id}`).then((r) => r.data),
 
   create: (input: CreateAssetInput) => api.post<Asset>('/assets', input).then((r) => r.data),
 
-  update: (id: string, input: UpdateAssetInput) =>
-    api.put<Asset>(`/assets/${id}`, input).then((r) => r.data),
-
   retire: (id: string) => api.post<Asset>(`/assets/${id}/retire`).then((r) => r.data),
-
-  review: (id: string, input: AssetReviewInput) =>
-    api.post<AssetReviewResponse>(`/assets/${id}/review`, input).then((r) => r.data),
 };

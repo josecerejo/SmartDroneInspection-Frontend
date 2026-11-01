@@ -26,3 +26,10 @@ dist-ssr
 
 # Impeccable cache
 .impeccable/
+
+# Environment files
+.env
+.env*.local
+.env.production
+.env.development
+!.env.example

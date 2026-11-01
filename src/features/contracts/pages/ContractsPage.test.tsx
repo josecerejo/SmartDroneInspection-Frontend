@@ -128,8 +128,9 @@ describe('ContractsPage', () => {
 
     renderPage();
     expect(screen.getByText('Inspection service requests')).toBeTruthy();
-    expect(screen.getAllByText('Crack check')).toHaveLength(2);
-    expect(screen.getByRole('button', { name: 'Submit request' })).toBeTruthy();
+    expect(screen.getByText('Crack check')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'New service request' }));
+    expect(screen.getByRole('button', { name: 'Gửi yêu cầu dịch vụ' })).toBeTruthy();
   });
 
   it('allows customer to download the signed contract attachment when recorded', () => {
@@ -178,6 +179,7 @@ describe('ContractsPage', () => {
     } as any);
 
     renderPage();
+    fireEvent.click(screen.getByRole('button', { name: 'Track progress' }));
     expect(screen.getByText(/Signed scan recorded: signed-contract.pdf/)).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Download signed contract' })).toBeTruthy();
   });
@@ -246,6 +248,7 @@ describe('ContractsPage', () => {
     } as any);
 
     renderPage();
+    fireEvent.click(screen.getByRole('button', { name: 'Track progress' }));
     expect(screen.getByText('Issue quote version')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Issue new quote version' })).toBeTruthy();
     fireEvent.mouseDown(screen.getByLabelText('Partner Inspector'));
@@ -340,6 +343,7 @@ describe('ContractsPage', () => {
     } as any);
 
     renderPage();
+    fireEvent.click(screen.getByRole('button', { name: 'Track progress' }));
     expect(screen.getByText('Version 2 · Latest')).toBeTruthy();
     const acceptBtn = screen.getByRole('button', { name: 'Accept latest quote' });
     expect(acceptBtn).toBeTruthy();
@@ -424,6 +428,7 @@ describe('ContractsPage', () => {
     } as any);
 
     renderPage();
+    fireEvent.click(screen.getByRole('button', { name: 'Track progress' }));
     expect(screen.getByText('Occurrence 1')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Assign occurrence' })).toBeTruthy();
     fireEvent.mouseDown(screen.getByLabelText('Inspector'));

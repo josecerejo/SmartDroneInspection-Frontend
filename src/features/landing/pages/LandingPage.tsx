@@ -66,7 +66,7 @@ export default function LandingPage() {
   const { locale, setLocale, t } = useLocale();
   useEffect(() => {
     const previousTitle = document.title;
-    document.title = 'SmartDroneInspection | A clearer view of every asset';
+    document.title = 'SDI | A clearer view of every asset';
     if (!window.sessionStorage.getItem('sdi_locale_explicit')) {
       setLocale('en');
     }
@@ -109,14 +109,13 @@ export default function LandingPage() {
           <Link
             href="/"
             underline="none"
-            aria-label={t('SmartDroneInspection home')}
+            aria-label={t('SDI home')}
             sx={{ color: '#fff', fontSize: 15, fontWeight: 650, letterSpacing: '-0.04em' }}
           >
             <Stack direction="row" spacing={1.25} sx={{ alignItems: 'center' }}>
               <Box component="img" src="/images/landing/teal-soft-dark-v1.png" alt="" aria-hidden="true" sx={{ width: 38, height: 38, borderRadius: 1, objectFit: 'cover' }} />
               <Typography component="span" sx={{ color: 'inherit', fontWeight: 'inherit', letterSpacing: 'inherit' }}>
-                SmartDrone
-                <Box component="span" sx={{ display: { xs: 'none', sm: 'inline' } }}>Inspection</Box>
+                SDI
               </Typography>
             </Stack>
           </Link>
@@ -522,7 +521,7 @@ export default function LandingPage() {
             <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
               <Box component="img" src="/images/landing/teal-soft-dark-v1.png" alt="" aria-hidden="true" sx={{ width: 44, height: 44, borderRadius: 1, objectFit: 'cover' }} />
               <Typography sx={{ color: '#f5f5f3', fontSize: 18, fontWeight: 650, letterSpacing: '-.04em' }}>
-                SmartDroneInspection
+                SDI
               </Typography>
             </Stack>
             <Stack
@@ -543,7 +542,7 @@ export default function LandingPage() {
             </Stack>
           </Box>
           <Typography sx={{ color: '#686c66', fontSize: 12 }}>
-            {t('© 2026 SmartDroneInspection. All rights reserved.')}
+            {t('© 2026 SDI. All rights reserved.')}
           </Typography>
         </Box>
       </Box>

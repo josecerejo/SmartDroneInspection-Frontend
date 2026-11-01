@@ -72,7 +72,7 @@ export function DarkHeader() {
               color: '#253746',
             }}
           >
-            SmartDroneInspection
+            SDI
           </Typography>
         </Link>
 

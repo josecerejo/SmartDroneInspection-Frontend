@@ -4,21 +4,12 @@ import {
   catalogApi,
   catalogKeys,
   type CategoryInput,
-  type SuggestedFrequencyInput,
 } from '../api/catalogApi';
 
 export function useCategories() {
   return useQuery({
     queryKey: catalogKeys.categories(),
     queryFn: () => catalogApi.listCategories(),
-  });
-}
-
-export function useFrequencies(categoryId: string) {
-  return useQuery({
-    queryKey: catalogKeys.frequencies(categoryId),
-    queryFn: () => catalogApi.listFrequencies(categoryId),
-    enabled: Boolean(categoryId),
   });
 }
 
@@ -35,28 +26,16 @@ export function useCreateCategory() {
   });
 }
 
-export function useAddFrequency(categoryId: string) {
+export function useUpdateCategory() {
   const queryClient = useQueryClient();
   const showToast = useToastStore((s) => s.showToast);
 
   return useMutation({
-    mutationFn: (input: SuggestedFrequencyInput) => catalogApi.addFrequency(categoryId, input),
+    mutationFn: ({ id, input }: { id: string; input: CategoryInput }) =>
+      catalogApi.updateCategory(id, input),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: catalogKeys.frequencies(categoryId) });
-      showToast('Suggested frequency added');
-    },
-  });
-}
-
-export function useDeleteFrequency(categoryId: string) {
-  const queryClient = useQueryClient();
-  const showToast = useToastStore((s) => s.showToast);
-
-  return useMutation({
-    mutationFn: (frequencyId: string) => catalogApi.deleteFrequency(categoryId, frequencyId),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: catalogKeys.frequencies(categoryId) });
-      showToast('Suggested frequency removed');
+      void queryClient.invalidateQueries({ queryKey: catalogKeys.categories() });
+      showToast('Category updated');
     },
   });
 }
