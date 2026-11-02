@@ -26,6 +26,7 @@ import {
   usePublishReportVersion,
   useAcceptReportVersion,
   useCreateInspectionPayOSLink,
+  useCreateInspectionVnPayUrl,
   useReviewReportVersion,
   useSubmitReportVersion,
   useWithdrawReportVersion,
@@ -90,12 +91,15 @@ export default function ReportDetailPage() {
   const publish = usePublishReportVersion(inspectionId);
   const acceptReport = useAcceptReportVersion(inspectionId);
   const payosLink = useCreateInspectionPayOSLink(inspectionId);
+  const vnpayLink = useCreateInspectionVnPayUrl(inspectionId);
   const paymentStatusQuery = useReportPaymentStatus(inspectionId);
   const paymentStatus = paymentStatusQuery.data;
+  const searchParams = new URLSearchParams(location.search);
+  const isPaymentCancelled = searchParams.get('payment') === 'cancelled';
   const isPaid = Boolean(
     paymentStatus?.paid ||
       paymentStatus?.paymentStatus === 'PAID' ||
-      new URLSearchParams(location.search).get('payment') === 'success',
+      searchParams.get('payment') === 'success',
   );
   const isReportAccepted = Boolean(
     paymentStatus?.reportAccepted || acceptReport.isSuccess,
@@ -490,9 +494,11 @@ export default function ReportDetailPage() {
                   versionNo={openVersion.versionNo}
                   isPaid={isPaid}
                   isReportAccepted={isReportAccepted}
+                  isPaymentCancelled={isPaymentCancelled}
                   paymentStatus={paymentStatus}
                   acceptPending={acceptReport.isPending}
                   payosPending={payosLink.isPending}
+                  vnpayPending={vnpayLink.isPending}
                   disputeSubmitted={disputeSubmitted}
                   onAcceptReport={() =>
                     acceptReport.mutate(openVersion.id, {
@@ -502,6 +508,7 @@ export default function ReportDetailPage() {
                     })
                   }
                   onProceedToPayOS={() => payosLink.mutate()}
+                  onProceedToVnPay={() => vnpayLink.mutate()}
                   onOpenDispute={() => setDisputeOpen(true)}
                 />
               )}
